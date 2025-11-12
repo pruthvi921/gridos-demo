@@ -1,0 +1,136 @@
+apiVersion: flagger.app/v1beta1
+kind: Canary
+metadata:
+  name: gridos
+  namespace: gridos
+spec:
+  # Reference to target deployment
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: gridos
+  
+  # Progressive delivery strategy
+  progressDeadlineSeconds: 600  # 10 minutes timeout
+  
+  # Service configuration
+  service:
+    port: 80
+    targetPort: 8080
+    portName: http
+    # Primary service (stable)
+    name: gridos
+    # Canary service (auto-generated)
+    # canary: gridos-canary
+    # Virtual service for traffic routing
+    gateways:
+    - gridos-gateway
+    hosts:
+    - gridos.example.com
+  
+  # Canary analysis configuration
+  analysis:
+    # Schedule interval for metric checks
+    interval: 1m
+    
+    # Max traffic percentage before rollback
+    threshold: 5
+    
+    # Maximum number of failed checks before rollback
+    maxWeight: 100
+    
+    # Traffic increment percentage
+    stepWeight: 10
+    
+    # Number of successful checks required before promotion
+    iterations: 10
+    
+    # Metrics for canary analysis
+    metrics:
+    # HTTP request success rate
+    - name: request-success-rate
+      # Minimum % of successful requests (non-5xx)
+      thresholdRange:
+        min: 99
+      interval: 1m
+    
+    # Request duration (latency)
+    - name: request-duration
+      # Maximum p99 latency in milliseconds
+      thresholdRange:
+        max: 500
+      interval: 1m
+    
+    # Custom Prometheus metrics
+    - name: error-rate
+      templateRef:
+        name: error-rate
+        namespace: flagger-system
+      thresholdRange:
+        max: 1  # 1% error rate threshold
+      interval: 1m
+    
+    # Load testing webhook (optional)
+    webhooks:
+    - name: load-test
+      type: rollout
+      url: http://flagger-loadtester.flagger-system/
+      timeout: 15s
+      metadata:
+        type: cmd
+        cmd: "hey -z 1m -q 10 -c 2 http://gridos-canary.gridos/"
+    
+    # Post-rollout notification (optional)
+    - name: teams-notification
+      type: post-rollout
+      url: http://notification-service.monitoring/webhook
+      timeout: 5s
+      metadata:
+        message: "Canary deployment {{ .Status }} for {{ .Name }}.{{ .Namespace }}"
+    
+    # Pre-rollout gate (optional)
+    - name: approval-gate
+      type: confirm-rollout
+      url: http://approval-service.ci-cd/approve
+      timeout: 30s
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flagger-metrics
+  namespace: flagger-system
+data:
+  error-rate: |
+    {
+      "query": "100 - (sum(rate(nginx_ingress_controller_requests{namespace=\"gridos\",service=\"gridos\",status!~\"5..\"}[1m])) / sum(rate(nginx_ingress_controller_requests{namespace=\"gridos\",service=\"gridos\"}[1m])) * 100)",
+      "threshold": 1
+    }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gridos
+  namespace: gridos
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # Canary annotations (managed by Flagger)
+    nginx.ingress.kubernetes.io/canary: "false"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - gridos.example.com
+    secretName: gridos-tls
+  rules:
+  - host: gridos.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: gridos
+            port:
+              number: 80

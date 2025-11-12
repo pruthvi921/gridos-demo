@@ -1,0 +1,174 @@
+---
+# Argo Rollout for GridOS - Replaces Deployment for Canary Deployments
+# This is the core progressive delivery resource
+
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: gridos
+  labels:
+    app: gridos
+spec:
+  # Replicas managed by HPA
+  replicas: 3
+  
+  # Rollout strategy - controls the release
+  strategy:
+    canary:
+      # Services for stable and canary
+      canaryService: gridos-canary
+      stableService: gridos-stable
+      
+      # Traffic routing via Ingress
+      trafficRouting:
+        managedRoutes:
+        - name: primary
+        nginx:  # Works with AGIC too via ingress annotations
+          stableIngress: gridos-stable
+          additionalIngressAnnotations:
+            canary-by-header: X-Canary
+            canary-by-header-value: "true"
+      
+      # Canary steps - progressive traffic increase
+      steps:
+      # Step 1: Deploy canary, route 10% traffic
+      - setWeight: 10
+      - pause: {duration: 1m}
+      
+      # Step 2: Run analysis (check metrics)
+      - analysis:
+          templates:
+          - templateName: success-rate
+          - templateName: latency
+          args:
+          - name: service-name
+            value: gridos-canary
+      
+      # Step 3: If analysis passes, increase to 25%
+      - setWeight: 25
+      - pause: {duration: 2m}
+      - analysis:
+          templates:
+          - templateName: success-rate
+          - templateName: latency
+          args:
+          - name: service-name
+            value: gridos-canary
+      
+      # Step 4: Increase to 50%
+      - setWeight: 50
+      - pause: {duration: 3m}
+      - analysis:
+          templates:
+          - templateName: success-rate
+          - templateName: latency
+          args:
+          - name: service-name
+            value: gridos-canary
+      
+      # Step 5: Full rollout to 100%
+      - setWeight: 100
+      - pause: {duration: 2m}
+      
+      # Analysis runs continuously during rollout
+      analysis:
+        templates:
+        - templateName: success-rate
+        - templateName: latency
+        startingStep: 2  # Start analysis after first weight change
+        args:
+        - name: service-name
+          value: gridos-canary
+  
+  # How many old ReplicaSets to keep
+  revisionHistoryLimit: 5
+  
+  # Selector for pods
+  selector:
+    matchLabels:
+      app: gridos
+  
+  # Pod template (same as Deployment)
+  template:
+    metadata:
+      labels:
+        app: gridos
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: gridos-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: gridos
+        image: gridosacr.azurecr.io/gridos:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: LOG_LEVEL
+          value: "info"
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: gridos-secrets
+              key: db-host
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: gridos-secrets
+              key: db-username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: gridos-secrets
+              key: db-password
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: gridos-config
+              key: redis-host
+        - name: REDIS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: gridos-config
+              key: redis-port
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+          requests:
+            cpu: 500m
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: false

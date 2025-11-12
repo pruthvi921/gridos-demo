@@ -1,0 +1,187 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gridos-pod-crashloop-debug
+  namespace: monitoring
+  labels:
+    app: gridos-runbook
+    runbook: pod-crashloop-debug
+spec:
+  ttlSecondsAfterFinished: 7200  # Keep logs for 2 hours
+  backoffLimit: 1
+  template:
+    spec:
+      serviceAccountName: gridos-runbook-sa
+      restartPolicy: Never
+      containers:
+      - name: crashloop-debug
+        image: bitnami/kubectl:latest
+        env:
+        - name: SLACK_WEBHOOK
+          valueFrom:
+            secretKeyRef:
+              name: alertmanager-slack
+              key: webhook_url
+        - name: GRIDOS_NAMESPACE
+          value: "gridos"
+        command: ["/bin/bash"]
+        args:
+        - -c
+        - |
+          #!/bin/bash
+          set -e
+          
+          echo "=================================="
+          echo "Pod CrashLoop Diagnostics"
+          echo "Started: $(date)"
+          echo "=================================="
+          
+          # Function to post to Slack
+          post_slack() {
+            local message="$1"
+            curl -X POST "${SLACK_WEBHOOK}" \
+              -H 'Content-Type: application/json' \
+              -d "{\"text\": \"${message}\"}"
+          }
+          
+          # Find crashing pods
+          echo "Finding pods with restarts..."
+          CRASHING_PODS=$(kubectl get pods -n ${GRIDOS_NAMESPACE} -o json | \
+            jq -r '.items[] | select(.status.containerStatuses[]?.restartCount > 0) | .metadata.name')
+          
+          if [ -z "${CRASHING_PODS}" ]; then
+            echo "No crashing pods found. Pods may have stabilized."
+            post_slack "✅ Pod CrashLoop: No crashing pods detected"
+            exit 0
+          fi
+          
+          echo "Crashing pods found:"
+          echo "${CRASHING_PODS}"
+          
+          # Analyze each crashing pod
+          DIAGNOSTICS=""
+          
+          for POD in ${CRASHING_PODS}; do
+            echo ""
+            echo "Analyzing pod: ${POD}"
+            echo "----------------------------"
+            
+            # Get restart count
+            RESTART_COUNT=$(kubectl get pod ${POD} -n ${GRIDOS_NAMESPACE} -o jsonpath='{.status.containerStatuses[0].restartCount}')
+            echo "Restart count: ${RESTART_COUNT}"
+            
+            # Get pod status
+            POD_PHASE=$(kubectl get pod ${POD} -n ${GRIDOS_NAMESPACE} -o jsonpath='{.status.phase}')
+            echo "Pod phase: ${POD_PHASE}"
+            
+            # Get container status
+            CONTAINER_STATE=$(kubectl get pod ${POD} -n ${GRIDOS_NAMESPACE} -o jsonpath='{.status.containerStatuses[0].state}')
+            echo "Container state: ${CONTAINER_STATE}"
+            
+            # Get last termination reason
+            TERMINATION_REASON=$(kubectl get pod ${POD} -n ${GRIDOS_NAMESPACE} -o jsonpath='{.status.containerStatuses[0].lastState.terminated.reason}')
+            EXIT_CODE=$(kubectl get pod ${POD} -n ${GRIDOS_NAMESPACE} -o jsonpath='{.status.containerStatuses[0].lastState.terminated.exitCode}')
+            
+            echo "Last termination: ${TERMINATION_REASON} (exit code: ${EXIT_CODE})"
+            
+            # Collect previous logs (from crashed container)
+            echo "Collecting crash logs..."
+            CRASH_LOGS=$(kubectl logs ${POD} -n ${GRIDOS_NAMESPACE} --previous --tail=50 2>&1 || echo "No previous logs available")
+            
+            # Analyze crash patterns
+            ERROR_SUMMARY=""
+            
+            if echo "${CRASH_LOGS}" | grep -qi "out of memory\|oom"; then
+              ERROR_SUMMARY="❌ *Out of Memory (OOM)*"
+              echo "Pattern detected: Out of Memory"
+            elif echo "${CRASH_LOGS}" | grep -qi "database\|connection refused\|econnrefused"; then
+              ERROR_SUMMARY="❌ *Database Connection Failure*"
+              echo "Pattern detected: Database connection issues"
+            elif echo "${CRASH_LOGS}" | grep -qi "panic\|fatal error"; then
+              ERROR_SUMMARY="❌ *Application Panic/Fatal Error*"
+              echo "Pattern detected: Application crash"
+            elif echo "${CRASH_LOGS}" | grep -qi "timeout\|deadline exceeded"; then
+              ERROR_SUMMARY="❌ *Timeout/Deadline Exceeded*"
+              echo "Pattern detected: Timeout errors"
+            elif [ "${EXIT_CODE}" == "137" ]; then
+              ERROR_SUMMARY="❌ *Killed by OOMKiller (exit 137)*"
+              echo "Pattern detected: OOMKilled"
+            elif [ "${EXIT_CODE}" == "143" ]; then
+              ERROR_SUMMARY="⚠️ *SIGTERM (exit 143) - Graceful shutdown*"
+              echo "Pattern detected: SIGTERM"
+            else
+              ERROR_SUMMARY="❓ *Unknown crash pattern*"
+              echo "Pattern detected: Unknown"
+            fi
+            
+            # Get pod resource usage
+            echo "Checking resource usage..."
+            POD_MEMORY=$(kubectl top pod ${POD} -n ${GRIDOS_NAMESPACE} 2>/dev/null | tail -1 | awk '{print $3}' || echo "N/A")
+            POD_CPU=$(kubectl top pod ${POD} -n ${GRIDOS_NAMESPACE} 2>/dev/null | tail -1 | awk '{print $2}' || echo "N/A")
+            
+            echo "Resource usage: CPU=${POD_CPU}, Memory=${POD_MEMORY}"
+            
+            # Get resource limits
+            MEMORY_LIMIT=$(kubectl get pod ${POD} -n ${GRIDOS_NAMESPACE} -o jsonpath='{.spec.containers[0].resources.limits.memory}')
+            CPU_LIMIT=$(kubectl get pod ${POD} -n ${GRIDOS_NAMESPACE} -o jsonpath='{.spec.containers[0].resources.limits.cpu}')
+            
+            echo "Resource limits: CPU=${CPU_LIMIT}, Memory=${MEMORY_LIMIT}"
+            
+            # Check recent events
+            echo "Checking recent events..."
+            POD_EVENTS=$(kubectl get events -n ${GRIDOS_NAMESPACE} --field-selector involvedObject.name=${POD} --sort-by='.lastTimestamp' | tail -5)
+            
+            # Build diagnostic report for this pod
+            DIAGNOSTICS="${DIAGNOSTICS}
+          
+          *Pod:* \`${POD}\`
+          ${ERROR_SUMMARY}
+          *Restarts:* ${RESTART_COUNT}
+          *Exit Code:* ${EXIT_CODE}
+          *Reason:* ${TERMINATION_REASON}
+          *Resources:* CPU=${POD_CPU}/${CPU_LIMIT}, Memory=${POD_MEMORY}/${MEMORY_LIMIT}
+          
+          *Recent Logs:*
+          \`\`\`
+          $(echo "${CRASH_LOGS}" | head -20)
+          \`\`\`
+          
+          *Events:*
+          \`\`\`
+          ${POD_EVENTS}
+          \`\`\`
+          ---"
+          
+          done
+          
+          # Post comprehensive diagnostics to Slack
+          post_slack "🔍 *Pod CrashLoop Diagnostics*
+          
+          *Namespace:* ${GRIDOS_NAMESPACE}
+          *Time:* $(date)
+          
+          ${DIAGNOSTICS}
+          
+          *Recommended Actions:*
+          1. Review crash logs for error patterns
+          2. Check if recent deployment introduced bugs
+          3. Verify resource limits (CPU/Memory)
+          4. Check database connectivity
+          5. Review configuration changes
+          
+          *Commands:*
+          \`kubectl logs <pod> -n ${GRIDOS_NAMESPACE} --previous\`
+          \`kubectl describe pod <pod> -n ${GRIDOS_NAMESPACE}\`
+          \`kubectl get events -n ${GRIDOS_NAMESPACE} --sort-by='.lastTimestamp'\`
+          
+          *Possible Solutions:*
+          • If OOM: Increase memory limits
+          • If DB errors: Check database connectivity
+          • If panic: Rollback recent deployment
+          • If config errors: Verify ConfigMaps/Secrets"
+          
+          echo ""
+          echo "=================================="
+          echo "Diagnostics complete: $(date)"
+          echo "Detailed report sent to Slack"
+          echo "=================================="

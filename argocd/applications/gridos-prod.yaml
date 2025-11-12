@@ -1,0 +1,104 @@
+---
+# Argo CD Application for GridOS Production Environment
+# More restrictive sync policy - requires manual approval for safety
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gridos-prod
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    environment: prod
+    app: gridos
+    team: sre
+    critical: "true"
+spec:
+  project: gridos
+  
+  source:
+    repoURL: https://github.com/YOUR_ORG/sharedinfra
+    targetRevision: main  # Use release tags for prod (e.g., v2.1.0)
+    path: applications/gridos/overlays/prod
+    
+    kustomize:
+      images:
+      - gridosacr.azurecr.io/gridos:latest
+      
+      commonLabels:
+        environment: prod
+        managed-by: argocd
+        compliance: nerc-cip
+      
+      commonAnnotations:
+        argocd.argoproj.io/sync-wave: "10"
+        security-scan: "passed"
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gridos
+  
+  syncPolicy:
+    # SEMI-AUTOMATED for production safety
+    automated:
+      prune: false  # Don't auto-delete in prod (manual only)
+      selfHeal: false  # Allow manual changes (emergency fixes)
+      allowEmpty: false
+    
+    syncOptions:
+    - CreateNamespace=true
+    - PrunePropagationPolicy=foreground
+    - PruneLast=true
+    - RespectIgnoreDifferences=true
+    - ApplyOutOfSyncOnly=true
+    
+    # More aggressive retry for prod
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m
+  
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    jsonPointers:
+    - /spec/replicas
+  - group: argoproj.io
+    kind: Rollout
+    jsonPointers:
+    - /spec/replicas
+    - /status  # Ignore rollout status changes
+  - group: ""
+    kind: Service
+    jsonPointers:
+    - /metadata/annotations
+    - /spec/loadBalancerIP  # Azure may set this
+  - group: ""
+    kind: Secret
+    jsonPointers:
+    - /data
+  - group: networking.k8s.io
+    kind: Ingress
+    jsonPointers:
+    - /status  # Azure App Gateway updates status
+  
+  revisionHistoryLimit: 20  # Keep more history for prod
+  
+  info:
+  - name: 'Environment'
+    value: 'Production ⚠️'
+  - name: 'Team'
+    value: 'SRE'
+  - name: 'On-Call'
+    value: 'sre-oncall@gridos.example.com'
+  - name: 'Contact'
+    value: 'sre-team@gridos.example.com'
+  - name: 'Documentation'
+    value: 'https://docs.gridos.example.com/prod'
+  - name: 'Runbook'
+    value: 'https://docs.gridos.example.com/runbooks/deployment'
+  - name: 'Compliance'
+    value: 'NERC CIP, SOC 2'

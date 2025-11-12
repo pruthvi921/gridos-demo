@@ -1,0 +1,187 @@
+groups:
+  - name: gridos_alerts
+    interval: 30s
+    rules:
+      # Availability Alerts
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{job="gridos-api",status=~"5.."}[5m])) 
+          / sum(rate(http_requests_total{job="gridos-api"}[5m])) * 100 > 1
+        for: 5m
+        labels:
+          severity: critical
+          component: api
+          slo: availability
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 1%)"
+          runbook: "https://runbooks.example.com/high-error-rate"
+
+      - alert: ServiceDown
+        expr: up{job="gridos-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "GridOS API service is down"
+          description: "Service {{ $labels.instance }} has been down for more than 1 minute"
+          runbook: "https://runbooks.example.com/service-down"
+
+      # Latency Alerts
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(http_request_duration_seconds_bucket{job="gridos-api"}[5m])) by (le)
+          ) > 0.2
+        for: 10m
+        labels:
+          severity: warning
+          component: api
+          slo: latency
+        annotations:
+          summary: "High API latency detected"
+          description: "p95 latency is {{ $value | humanizeDuration }} (threshold: 200ms)"
+          runbook: "https://runbooks.example.com/high-latency"
+
+      - alert: VeryHighLatency
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(http_request_duration_seconds_bucket{job="gridos-api"}[5m])) by (le)
+          ) > 1
+        for: 5m
+        labels:
+          severity: critical
+          component: api
+          slo: latency
+        annotations:
+          summary: "Very high API latency detected"
+          description: "p95 latency is {{ $value | humanizeDuration }} (threshold: 1s)"
+          runbook: "https://runbooks.example.com/very-high-latency"
+
+      # Resource Alerts
+      - alert: HighCPUUsage
+        expr: |
+          sum(rate(container_cpu_usage_seconds_total{pod=~"gridos-.*"}[5m])) by (pod)
+          / sum(container_spec_cpu_quota{pod=~"gridos-.*"} / container_spec_cpu_period{pod=~"gridos-.*"}) by (pod) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High CPU usage on {{ $labels.pod }}"
+          description: "CPU usage is {{ $value | humanizePercentage }} (threshold: 80%)"
+          runbook: "https://runbooks.example.com/high-cpu"
+
+      - alert: HighMemoryUsage
+        expr: |
+          sum(container_memory_working_set_bytes{pod=~"gridos-.*"}) by (pod)
+          / sum(container_spec_memory_limit_bytes{pod=~"gridos-.*"}) by (pod) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High memory usage on {{ $labels.pod }}"
+          description: "Memory usage is {{ $value | humanizePercentage }} (threshold: 85%)"
+          runbook: "https://runbooks.example.com/high-memory"
+
+      # Database Alerts
+      - alert: DatabaseConnectionPoolExhausted
+        expr: gridos_database_connections_active / gridos_database_connections_max > 0.9
+        for: 5m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: "{{ $value | humanizePercentage }} of connections in use (threshold: 90%)"
+          runbook: "https://runbooks.example.com/db-connection-pool"
+
+      - alert: SlowDatabaseQueries
+        expr: gridos_database_query_duration_seconds{quantile="0.95"} > 1
+        for: 10m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Slow database queries detected"
+          description: "p95 query duration is {{ $value | humanizeDuration }} (threshold: 1s)"
+          runbook: "https://runbooks.example.com/slow-queries"
+
+      # Business Logic Alerts
+      - alert: HighAlarmRate
+        expr: rate(gridos_active_alarms_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: business
+        annotations:
+          summary: "High rate of new alarms"
+          description: "{{ $value }} alarms/sec being generated (threshold: 10/sec)"
+          runbook: "https://runbooks.example.com/high-alarm-rate"
+
+      - alert: CriticalGridNodeOffline
+        expr: gridos_grid_node_status{status="offline",criticality="high"} > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: business
+        annotations:
+          summary: "Critical grid node offline"
+          description: "Grid node {{ $labels.node_id }} is offline"
+          runbook: "https://runbooks.example.com/grid-node-offline"
+
+      # SLO Burn Rate Alerts (Multi-window, multi-burn-rate)
+      - alert: ErrorBudgetBurnRateFast
+        expr: |
+          (sum(rate(http_requests_total{job="gridos-api",status=~"5.."}[1h])) 
+          / sum(rate(http_requests_total{job="gridos-api"}[1h]))) 
+          / (1 - 0.999) > 14.4
+        for: 2m
+        labels:
+          severity: critical
+          slo: availability
+        annotations:
+          summary: "Fast error budget burn detected"
+          description: "At current rate, will exhaust monthly error budget in 2 days"
+          runbook: "https://runbooks.example.com/error-budget-burn"
+
+      - alert: ErrorBudgetBurnRateSlow
+        expr: |
+          (sum(rate(http_requests_total{job="gridos-api",status=~"5.."}[6h])) 
+          / sum(rate(http_requests_total{job="gridos-api"}[6h]))) 
+          / (1 - 0.999) > 6
+        for: 15m
+        labels:
+          severity: warning
+          slo: availability
+        annotations:
+          summary: "Elevated error budget burn detected"
+          description: "At current rate, will exhaust monthly error budget in 5 days"
+          runbook: "https://runbooks.example.com/error-budget-burn"
+
+      # Deployment Alerts
+      - alert: DeploymentReplicasMismatch
+        expr: |
+          kube_deployment_spec_replicas{deployment="gridos-api"}
+          != kube_deployment_status_replicas_available{deployment="gridos-api"}
+        for: 15m
+        labels:
+          severity: warning
+          component: kubernetes
+        annotations:
+          summary: "Deployment replicas mismatch"
+          description: "Deployment {{ $labels.deployment }} has mismatched replicas for 15+ minutes"
+          runbook: "https://runbooks.example.com/replica-mismatch"
+
+      - alert: PodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total{pod=~"gridos-.*"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: kubernetes
+        annotations:
+          summary: "Pod crash looping"
+          description: "Pod {{ $labels.pod }} is crash looping"
+          runbook: "https://runbooks.example.com/pod-crash-loop"

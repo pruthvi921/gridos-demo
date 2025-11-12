@@ -1,0 +1,48 @@
+---
+# ServiceAccount for GridOS pods
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gridos-sa
+  labels:
+    app: gridos
+  annotations:
+    # Azure Workload Identity
+    azure.workload.identity/client-id: "AZURE_CLIENT_ID"
+    azure.workload.identity/tenant-id: "AZURE_TENANT_ID"
+
+---
+# ConfigMap for non-sensitive configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gridos-config
+  labels:
+    app: gridos
+data:
+  redis-host: "gridos-redis.gridos.svc.cluster.local"
+  redis-port: "6379"
+  log-level: "info"
+  api-timeout: "30"
+  max-connections: "100"
+  scada-polling-interval: "5"
+  metrics-enabled: "true"
+  metrics-port: "8080"
+  metrics-path: "/metrics"
+
+---
+# Secret placeholder - actual secrets managed by external-secrets or Azure Key Vault
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gridos-secrets
+  labels:
+    app: gridos
+type: Opaque
+stringData:
+  # These are placeholders - real secrets should come from Azure Key Vault
+  db-host: "gridos-postgres.postgres.database.azure.com"
+  db-username: "gridos_user"
+  db-password: "PLACEHOLDER_REPLACE_WITH_KEYVAULT"
+  redis-password: "PLACEHOLDER_REPLACE_WITH_KEYVAULT"
+  api-key: "PLACEHOLDER_REPLACE_WITH_KEYVAULT"

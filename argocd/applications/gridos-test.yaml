@@ -1,0 +1,86 @@
+---
+# Argo CD Application for GridOS Test Environment
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gridos-test
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    environment: test
+    app: gridos
+    team: sre
+spec:
+  project: gridos
+  
+  source:
+    repoURL: https://github.com/YOUR_ORG/sharedinfra
+    targetRevision: main
+    path: applications/gridos/overlays/test
+    
+    kustomize:
+      images:
+      - gridosacr.azurecr.io/gridos:latest
+      
+      commonLabels:
+        environment: test
+        managed-by: argocd
+      
+      commonAnnotations:
+        argocd.argoproj.io/sync-wave: "10"
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gridos
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    
+    syncOptions:
+    - CreateNamespace=true
+    - PrunePropagationPolicy=foreground
+    - PruneLast=true
+    - RespectIgnoreDifferences=true
+    - ApplyOutOfSyncOnly=true
+    
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    jsonPointers:
+    - /spec/replicas
+  - group: argoproj.io
+    kind: Rollout
+    jsonPointers:
+    - /spec/replicas
+  - group: ""
+    kind: Service
+    jsonPointers:
+    - /metadata/annotations
+  - group: ""
+    kind: Secret
+    jsonPointers:
+    - /data
+  
+  revisionHistoryLimit: 10
+  
+  info:
+  - name: 'Environment'
+    value: 'Test'
+  - name: 'Team'
+    value: 'SRE'
+  - name: 'Contact'
+    value: 'sre-team@gridos.example.com'
+  - name: 'Documentation'
+    value: 'https://docs.gridos.example.com/test'

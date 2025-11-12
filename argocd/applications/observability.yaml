@@ -1,0 +1,90 @@
+---
+# Argo CD Application for Observability Stack
+# Manages Prometheus, Grafana, AlertManager deployment via GitOps
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability-dev
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 55.5.0
+    helm:
+      valueFiles:
+      - values-dev.yaml
+      releaseName: kube-prometheus-stack
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    jsonPointers:
+    - /spec/replicas  # Ignore HPA-managed replicas
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability-prod
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 55.5.0
+    helm:
+      valueFiles:
+      - values-prod.yaml
+      releaseName: kube-prometheus-stack
+  
+  destination:
+    server: https://kubernetes-prod.default.svc
+    namespace: monitoring
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    jsonPointers:
+    - /spec/replicas

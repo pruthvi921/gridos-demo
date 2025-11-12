@@ -1,0 +1,193 @@
+{
+  "dashboard": {
+    "title": "GridOS - System Overview",
+    "tags": ["gridos", "monitoring", "sre"],
+    "timezone": "browser",
+    "editable": true,
+    "refresh": "30s",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "title": "Request Rate (req/s)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{job=\"gridos-api\"}[5m]))",
+            "legendFormat": "Total Requests",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Requests/sec"}
+        ]
+      },
+      {
+        "title": "Error Rate (%)",
+        "type": "graph",
+        "gridPos": {"x": 8, "y": 0, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{job=\"gridos-api\",status=~\"5..\"}[5m])) / sum(rate(http_requests_total{job=\"gridos-api\"}[5m])) * 100",
+            "legendFormat": "Error Rate",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Error %", "max": 100}
+        ],
+        "alert": {
+          "name": "High Error Rate",
+          "conditions": [
+            {
+              "evaluator": {"params": [1], "type": "gt"},
+              "query": {"params": ["A", "5m", "now"]},
+              "type": "query"
+            }
+          ],
+          "frequency": "60s",
+          "handler": 1,
+          "message": "Error rate exceeds 1% threshold"
+        }
+      },
+      {
+        "title": "Response Time (p95)",
+        "type": "graph",
+        "gridPos": {"x": 16, "y": 0, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"gridos-api\"}[5m])) by (le))",
+            "legendFormat": "p95 Latency",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=\"gridos-api\"}[5m])) by (le))",
+            "legendFormat": "p99 Latency",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "ms", "label": "Duration"}
+        ]
+      },
+      {
+        "title": "Active Grid Nodes",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "gridos_active_nodes_total",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "none",
+          "colorMode": "value",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 1, "color": "yellow"},
+                {"value": 5, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Active Alarms",
+        "type": "stat",
+        "gridPos": {"x": 6, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "gridos_active_alarms_total",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "none",
+          "colorMode": "value"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 5, "color": "yellow"},
+                {"value": 20, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Pod CPU Usage",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(container_cpu_usage_seconds_total{pod=~\"gridos-.*\"}[5m])) by (pod)",
+            "legendFormat": "{{pod}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percentunit", "label": "CPU Usage"}
+        ]
+      },
+      {
+        "title": "Pod Memory Usage",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(container_memory_working_set_bytes{pod=~\"gridos-.*\"}) by (pod)",
+            "legendFormat": "{{pod}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "bytes", "label": "Memory"}
+        ]
+      },
+      {
+        "title": "Database Connections",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 20, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "gridos_database_connections_active",
+            "legendFormat": "Active Connections",
+            "refId": "A"
+          },
+          {
+            "expr": "gridos_database_connections_idle",
+            "legendFormat": "Idle Connections",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "title": "Sensor Reading Throughput",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 20, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(gridos_sensor_readings_total[5m]))",
+            "legendFormat": "Readings/sec",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Operations/sec"}
+        ]
+      }
+    ]
+  }
+}

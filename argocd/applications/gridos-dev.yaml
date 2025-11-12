@@ -1,0 +1,116 @@
+---
+# Argo CD Application for GridOS Development Environment
+# This tells Argo CD to watch GitHub repo and sync to dev namespace
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gridos-dev
+  namespace: argocd
+  # Finalizer ensures cascade delete
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  # Labels for organization
+  labels:
+    environment: dev
+    app: gridos
+    team: sre
+spec:
+  # Project this application belongs to
+  project: gridos
+  
+  # Source - where the manifests are
+  source:
+    # GitHub repository URL
+    repoURL: https://github.com/YOUR_ORG/sharedinfra
+    # Branch/tag/commit to track
+    targetRevision: main
+    # Path within the repo
+    path: applications/gridos/overlays/dev
+    
+    # Kustomize options
+    kustomize:
+      # Image tag override (will be updated by CI)
+      images:
+      - gridosacr.azurecr.io/gridos:latest
+      
+      # Common labels applied to all resources
+      commonLabels:
+        environment: dev
+        managed-by: argocd
+      
+      # Common annotations
+      commonAnnotations:
+        argocd.argoproj.io/sync-wave: "10"
+  
+  # Destination - where to deploy
+  destination:
+    # Kubernetes cluster (in-cluster = same cluster Argo CD runs in)
+    server: https://kubernetes.default.svc
+    # Namespace to deploy to
+    namespace: gridos
+  
+  # Sync policy - how to sync
+  syncPolicy:
+    # Automated sync
+    automated:
+      # Automatically apply changes when Git changes
+      prune: true  # Delete resources not in Git
+      selfHeal: true  # Revert manual kubectl changes
+      allowEmpty: false  # Don't delete everything if path is empty
+    
+    # Sync options
+    syncOptions:
+    - CreateNamespace=true  # Create namespace if doesn't exist
+    - PrunePropagationPolicy=foreground  # Wait for deletion
+    - PruneLast=true  # Delete old resources after new ones are healthy
+    - RespectIgnoreDifferences=true
+    - ApplyOutOfSyncOnly=true  # Only apply resources that are out of sync
+    
+    # Retry strategy
+    retry:
+      limit: 5  # Max retry attempts
+      backoff:
+        duration: 5s  # Initial wait
+        factor: 2  # Multiply wait by this each retry
+        maxDuration: 3m  # Max wait between retries
+  
+  # Ignore differences - resources that drift is expected
+  ignoreDifferences:
+  # Ignore HPA replicas (HPA controls this)
+  - group: apps
+    kind: Deployment
+    jsonPointers:
+    - /spec/replicas
+  
+  # Ignore rollout replicas (Argo Rollouts controls this)
+  - group: argoproj.io
+    kind: Rollout
+    jsonPointers:
+    - /spec/replicas
+  
+  # Ignore service annotations added by cloud provider
+  - group: ""
+    kind: Service
+    jsonPointers:
+    - /metadata/annotations
+  
+  # Ignore secret data (may be updated by external-secrets)
+  - group: ""
+    kind: Secret
+    jsonPointers:
+    - /data
+  
+  # Health assessment
+  revisionHistoryLimit: 10  # Keep last 10 revisions in history
+  
+  # Info - additional metadata shown in UI
+  info:
+  - name: 'Environment'
+    value: 'Development'
+  - name: 'Team'
+    value: 'SRE'
+  - name: 'Contact'
+    value: 'sre-team@gridos.example.com'
+  - name: 'Documentation'
+    value: 'https://docs.gridos.example.com/dev'

@@ -1,0 +1,209 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gridos-scada-recovery
+  namespace: monitoring
+  labels:
+    app: gridos-runbook
+    runbook: scada-ingestion-recovery
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 2
+  template:
+    spec:
+      serviceAccountName: gridos-runbook-sa
+      restartPolicy: Never
+      containers:
+      - name: scada-recovery
+        image: bitnami/kubectl:latest
+        env:
+        - name: PROMETHEUS_URL
+          value: "http://kube-prometheus-stack-prometheus.monitoring:9090"
+        - name: SLACK_WEBHOOK
+          valueFrom:
+            secretKeyRef:
+              name: alertmanager-slack
+              key: webhook_url
+        - name: GRIDOS_NAMESPACE
+          value: "gridos"
+        command: ["/bin/bash"]
+        args:
+        - -c
+        - |
+          #!/bin/bash
+          set -e
+          
+          echo "=================================="
+          echo "SCADA Ingestion Recovery"
+          echo "Started: $(date)"
+          echo "=================================="
+          
+          # Function to query Prometheus
+          query_prometheus() {
+            local query="$1"
+            curl -s -G --data-urlencode "query=${query}" \
+              "${PROMETHEUS_URL}/api/v1/query" | \
+              jq -r '.data.result[0].value[1] // "0"'
+          }
+          
+          # Function to post to Slack
+          post_slack() {
+            local message="$1"
+            curl -X POST "${SLACK_WEBHOOK}" \
+              -H 'Content-Type: application/json' \
+              -d "{\"text\": \"${message}\"}"
+          }
+          
+          # Check current ingestion rate
+          INGESTION_RATE=$(query_prometheus 'rate(gridos_scada_readings_total[5m])')
+          echo "Current SCADA ingestion rate: ${INGESTION_RATE} readings/sec"
+          
+          if (( $(echo "${INGESTION_RATE} > 0" | bc -l) )); then
+            echo "SCADA ingestion has resumed. No action needed."
+            post_slack "✅ SCADA Ingestion: Data flow restored automatically (${INGESTION_RATE} readings/sec)"
+            exit 0
+          fi
+          
+          echo "SCADA ingestion is stopped. Starting recovery..."
+          
+          # Step 1: Check SCADA data collection worker
+          echo "Checking SCADA worker pods..."
+          SCADA_WORKERS=$(kubectl get pods -n ${GRIDOS_NAMESPACE} -l component=scada-worker -o json)
+          WORKER_COUNT=$(echo "${SCADA_WORKERS}" | jq '.items | length')
+          echo "SCADA worker pods: ${WORKER_COUNT}"
+          
+          if [ "${WORKER_COUNT}" -eq "0" ]; then
+            echo "⚠️ No SCADA worker pods found!"
+            
+            post_slack "⚠️ *SCADA Recovery: Manual Intervention Required*
+          *Issue:* No SCADA worker pods running
+          *Action Required:* Check if SCADA worker deployment exists
+          
+          *Commands:*
+          \`kubectl get deployments -n ${GRIDOS_NAMESPACE} | grep scada\`
+          \`kubectl describe deployment scada-worker -n ${GRIDOS_NAMESPACE}\`"
+            
+            exit 1
+          fi
+          
+          # Step 2: Check worker pod status
+          UNHEALTHY_WORKERS=$(echo "${SCADA_WORKERS}" | jq '[.items[] | select(.status.phase != "Running")] | length')
+          
+          if [ "${UNHEALTHY_WORKERS}" -gt "0" ]; then
+            echo "Found ${UNHEALTHY_WORKERS} unhealthy worker pods"
+            echo "Restarting SCADA worker deployment..."
+            
+            kubectl rollout restart deployment scada-worker -n ${GRIDOS_NAMESPACE}
+            kubectl rollout status deployment scada-worker -n ${GRIDOS_NAMESPACE} --timeout=3m
+          fi
+          
+          # Step 3: Check message queue (if used)
+          echo "Checking message queue status..."
+          QUEUE_DEPTH=$(query_prometheus 'gridos_queue_depth{queue="scada_readings"}')
+          echo "Queue depth: ${QUEUE_DEPTH}"
+          
+          if (( $(echo "${QUEUE_DEPTH} > 10000" | bc -l) )); then
+            echo "⚠️ Large queue backlog detected: ${QUEUE_DEPTH} messages"
+            
+            # Scale up workers
+            echo "Scaling up SCADA workers to process backlog..."
+            CURRENT_REPLICAS=$(kubectl get deployment scada-worker -n ${GRIDOS_NAMESPACE} -o jsonpath='{.spec.replicas}')
+            NEW_REPLICAS=$((CURRENT_REPLICAS * 2))
+            
+            kubectl scale deployment scada-worker -n ${GRIDOS_NAMESPACE} --replicas=${NEW_REPLICAS}
+            echo "Scaled from ${CURRENT_REPLICAS} to ${NEW_REPLICAS} replicas"
+          fi
+          
+          # Step 4: Check database connectivity
+          echo "Checking database connectivity..."
+          DB_ERRORS=$(query_prometheus 'rate(gridos_database_connection_errors_total[5m])')
+          
+          if (( $(echo "${DB_ERRORS} > 0" | bc -l) )); then
+            echo "⚠️ Database connection errors detected: ${DB_ERRORS} errors/sec"
+            echo "SCADA ingestion stopped due to database issues"
+            
+            post_slack "⚠️ *SCADA Recovery: Database Issue Detected*
+          *Root Cause:* Database connection errors blocking SCADA ingestion
+          *Database Error Rate:* ${DB_ERRORS} errors/sec
+          *Queue Backlog:* ${QUEUE_DEPTH} messages
+          
+          *Action:* Run database recovery runbook first
+          \`kubectl create job --from=cronjob/database-recovery gridos-db-recovery-manual -n monitoring\`"
+            
+            exit 1
+          fi
+          
+          # Step 5: Check SCADA device connectivity
+          echo "Checking SCADA device status..."
+          DEVICES_ONLINE=$(query_prometheus 'gridos_scada_devices_online')
+          DEVICES_TOTAL=$(query_prometheus 'gridos_scada_devices_total')
+          echo "SCADA devices: ${DEVICES_ONLINE}/${DEVICES_TOTAL} online"
+          
+          DEVICE_PERCENTAGE=$(echo "scale=2; ${DEVICES_ONLINE} / ${DEVICES_TOTAL} * 100" | bc)
+          
+          if (( $(echo "${DEVICE_PERCENTAGE} < 50" | bc -l) )); then
+            echo "⚠️ Less than 50% of SCADA devices online"
+            
+            post_slack "⚠️ *SCADA Recovery: Device Connectivity Issue*
+          *Issue:* Only ${DEVICES_ONLINE}/${DEVICES_TOTAL} (${DEVICE_PERCENTAGE}%) devices online
+          *Possible Causes:*
+          - Network connectivity issues
+          - SCADA gateway offline
+          - Field devices powered off
+          
+          *Action Required:*
+          1. Check network connectivity to substations
+          2. Verify SCADA gateway status
+          3. Contact field operations team"
+            
+            exit 1
+          fi
+          
+          # Step 6: Wait and verify ingestion resumed
+          echo "Waiting 60 seconds for ingestion to resume..."
+          sleep 60
+          
+          NEW_INGESTION_RATE=$(query_prometheus 'rate(gridos_scada_readings_total[5m])')
+          echo "New SCADA ingestion rate: ${NEW_INGESTION_RATE} readings/sec"
+          
+          if (( $(echo "${NEW_INGESTION_RATE} > 0" | bc -l) )); then
+            echo "✅ SCADA ingestion recovery successful!"
+            
+            post_slack "✅ *SCADA Ingestion Recovery Complete*
+          *Action:* Restarted SCADA worker pods
+          *Before:* ${INGESTION_RATE} readings/sec
+          *After:* ${NEW_INGESTION_RATE} readings/sec
+          *Devices Online:* ${DEVICES_ONLINE}/${DEVICES_TOTAL}
+          *Queue Backlog:* ${QUEUE_DEPTH} messages
+          *Time:* $(date)"
+            
+            exit 0
+          else
+            echo "⚠️ SCADA ingestion still stopped after recovery attempts"
+            
+            # Collect diagnostics
+            WORKER_LOGS=$(kubectl logs -l component=scada-worker -n ${GRIDOS_NAMESPACE} --tail=30 | head -c 1000)
+            
+            post_slack "⚠️ *SCADA Recovery: Manual Intervention Required*
+          *Issue:* SCADA ingestion still stopped after automated recovery
+          *Devices Online:* ${DEVICES_ONLINE}/${DEVICES_TOTAL}
+          *Worker Pods:* ${WORKER_COUNT}
+          *Recent Logs:*
+          \`\`\`${WORKER_LOGS}\`\`\`
+          
+          *Action Required:*
+          1. Review SCADA worker logs
+          2. Check SCADA gateway logs
+          3. Verify network connectivity
+          4. Contact infrastructure team
+          
+          *Commands:*
+          \`kubectl logs -l component=scada-worker -n ${GRIDOS_NAMESPACE}\`
+          \`kubectl describe pod -l component=scada-worker -n ${GRIDOS_NAMESPACE}\`"
+            
+            exit 1
+          fi
+          
+          echo "=================================="
+          echo "Completed: $(date)"
+          echo "=================================="

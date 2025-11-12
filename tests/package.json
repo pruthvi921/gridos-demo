@@ -1,0 +1,38 @@
+{
+  "name": "gridos-tests",
+  "version": "1.0.0",
+  "description": "Integration tests for GridOS SCADA monitoring system",
+  "scripts": {
+    "test": "jest --coverage",
+    "test:unit": "jest --testPathPattern=tests/unit",
+    "test:integration": "jest --testPathPattern=tests/integration --runInBand",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage --coverageReporters=text --coverageReporters=lcov"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "coverageDirectory": "coverage",
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/**/*.test.js",
+      "!src/**/*.spec.js"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 70,
+        "functions": 70,
+        "lines": 70,
+        "statements": 70
+      }
+    },
+    "testMatch": [
+      "**/tests/**/*.test.js",
+      "**/tests/**/*.spec.js"
+    ],
+    "testTimeout": 30000
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "axios": "^1.6.0"
+  }
+}

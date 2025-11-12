@@ -1,0 +1,141 @@
+---
+# Kustomize Overlay for Production Environment
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ../../base
+
+namespace: gridos
+
+commonLabels:
+  environment: prod
+  compliance: nerc-cip
+  criticality: high
+
+commonAnnotations:
+  environment: prod
+  cost-center: operations
+  compliance: "NERC CIP, SOC 2"
+  backup: "enabled"
+
+images:
+- name: gridosacr.azurecr.io/gridos
+  newName: prodgridosacr.azurecr.io/gridos
+  newTag: v2.1.0  # Use semantic versions in prod, not 'latest'
+
+replicas:
+- name: gridos
+  count: 5  # More replicas for prod
+
+patches:
+# ConfigMap for prod
+- target:
+    kind: ConfigMap
+    name: gridos-config
+  patch: |-
+    - op: replace
+      path: /data/log-level
+      value: warn
+    - op: replace
+      path: /data/metrics-enabled
+      value: "true"
+    - op: add
+      path: /data/alert-enabled
+      value: "true"
+
+# HPA for prod (higher limits)
+- target:
+    kind: HorizontalPodAutoscaler
+    name: gridos-hpa
+  patch: |-
+    - op: replace
+      path: /spec/minReplicas
+      value: 5
+    - op: replace
+      path: /spec/maxReplicas
+      value: 15
+
+# Resources for prod (full limits)
+- target:
+    kind: Rollout
+    name: gridos
+  patch: |-
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/cpu
+      value: 1000m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/memory
+      value: 1Gi
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/cpu
+      value: 500m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/memory
+      value: 512Mi
+
+# PDB for prod (stricter)
+- target:
+    kind: PodDisruptionBudget
+    name: gridos-pdb
+  patch: |-
+    - op: replace
+      path: /spec/minAvailable
+      value: 3  # At least 3 pods must stay up
+
+# Ingress for prod
+- target:
+    kind: Ingress
+    name: gridos-stable
+  patch: |-
+    - op: replace
+      path: /spec/rules/0/host
+      value: gridos.example.com
+    - op: replace
+      path: /spec/tls/0/hosts/0
+      value: gridos.example.com
+    - op: replace
+      path: /spec/tls/0/secretName
+      value: gridos-prod-tls
+    - op: add
+      path: /metadata/annotations/appgw.ingress.kubernetes.io~1waf-policy-for-path
+      value: "/subscriptions/1e371d35-9938-4d5c-94ef-a1b1f9d32e31/resourceGroups/gridos-prod-rg/providers/Microsoft.Network/applicationGatewayWebApplicationFirewallPolicies/gridos-waf-prod"
+
+# Rollout strategy for prod (slower, safer canary)
+- target:
+    kind: Rollout
+    name: gridos
+  patch: |-
+    - op: replace
+      path: /spec/strategy/canary/steps/0/pause/duration
+      value: 2m
+    - op: replace
+      path: /spec/strategy/canary/steps/2/pause/duration
+      value: 5m
+    - op: replace
+      path: /spec/strategy/canary/steps/4/pause/duration
+      value: 10m
+    - op: replace
+      path: /spec/strategy/canary/steps/6/pause/duration
+      value: 5m
+
+# Add anti-affinity for prod (spread across nodes)
+- target:
+    kind: Rollout
+    name: gridos
+  patch: |-
+    - op: add
+      path: /spec/template/spec/affinity
+      value:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - gridos
+              topologyKey: kubernetes.io/hostname

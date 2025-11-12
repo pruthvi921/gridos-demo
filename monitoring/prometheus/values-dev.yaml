@@ -1,0 +1,442 @@
+# Prometheus Operator Configuration - Dev Environment
+# Includes Grafana, AlertManager, Prometheus, and ServiceMonitors
+
+# Global settings
+fullnameOverride: kube-prometheus-stack
+
+# Prometheus Configuration
+prometheus:
+  prometheusSpec:
+    retention: 7d  # Keep metrics for 7 days in dev
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi  # Dev storage
+    
+    # Service monitors for application metrics
+    serviceMonitorSelector:
+      matchLabels:
+        prometheus: kube-prometheus
+    
+    # Resource limits
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+    
+    # Additional scrape configs for GridOS
+    additionalScrapeConfigs:
+    - job_name: 'gridos'
+      kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+          - gridos
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+
+# Grafana Configuration
+grafana:
+  enabled: true
+  
+  adminPassword: "admin123"  # Change in production!
+  
+  ingress:
+    enabled: true
+    ingressClassName: azure-application-gateway
+    hosts:
+    - grafana-dev.gridos.example.com
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    tls:
+    - secretName: grafana-tls
+      hosts:
+      - grafana-dev.gridos.example.com
+  
+  # Resource limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  
+  # Persistence
+  persistence:
+    enabled: true
+    size: 10Gi
+  
+  # Grafana datasources
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+      - name: Prometheus
+        type: prometheus
+        url: http://kube-prometheus-stack-prometheus:9090
+        access: proxy
+        isDefault: true
+      - name: Loki
+        type: loki
+        url: http://loki:3100
+        access: proxy
+  
+  # Dashboard providers
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+      - name: 'default'
+        orgId: 1
+        folder: 'GridOS'
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+  
+  # Load custom dashboards
+  dashboards:
+    default:
+      gridos-overview:
+        file: dashboards/gridos-system-overview.json
+      gridos-slo:
+        file: dashboards/gridos-slo-dashboard.json
+      kubernetes-cluster:
+        gnetId: 7249  # Kubernetes Cluster Monitoring
+        revision: 1
+        datasource: Prometheus
+      node-exporter:
+        gnetId: 1860  # Node Exporter Full
+        revision: 27
+        datasource: Prometheus
+
+# AlertManager Configuration
+alertmanager:
+  enabled: true
+  
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+    
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
+  
+  config:
+    global:
+      resolve_timeout: 5m
+    
+    route:
+      group_by: ['alertname', 'cluster', 'service']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 12h
+      receiver: 'slack-notifications'
+      routes:
+      # Critical alerts to PagerDuty
+      - match:
+          severity: critical
+        receiver: pagerduty-critical
+        continue: true
+      # High severity to Slack
+      - match:
+          severity: high
+        receiver: slack-notifications
+      # GridOS specific alerts
+      - match:
+          app: gridos
+        receiver: slack-gridos
+    
+    receivers:
+    - name: 'slack-notifications'
+      slack_configs:
+      - api_url: 'SLACK_WEBHOOK_URL_PLACEHOLDER'  # Set via secret
+        channel: '#gridos-alerts'
+        title: '{{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        send_resolved: true
+    
+    - name: 'slack-gridos'
+      slack_configs:
+      - api_url: 'SLACK_WEBHOOK_URL_PLACEHOLDER'
+        channel: '#gridos-dev'
+        title: 'GridOS Alert: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        send_resolved: true
+    
+    - name: 'pagerduty-critical'
+      pagerduty_configs:
+      - service_key: 'PAGERDUTY_KEY_PLACEHOLDER'  # Set via secret
+        description: '{{ .GroupLabels.alertname }}'
+
+# Node Exporter
+prometheus-node-exporter:
+  enabled: true
+
+# Kube State Metrics
+kube-state-metrics:
+  enabled: true
+
+# Default rules
+defaultRules:
+  create: true
+  rules:
+    alertmanager: true
+    etcd: true
+    general: true
+    k8s: true
+    kubeApiserver: true
+    kubeApiserverAvailability: true
+    kubeApiserverSlos: true
+    kubelet: true
+    kubePrometheusGeneral: true
+    kubePrometheusNodeRecording: true
+    kubernetesApps: true
+    kubernetesResources: true
+    kubernetesStorage: true
+    kubernetesSystem: true
+    kubeScheduler: true
+    kubeStateMetrics: true
+    network: true
+    node: true
+    prometheus: true
+    prometheusOperator: true
+
+# Additional Prometheus Rules for GridOS
+additionalPrometheusRulesMap:
+  gridos-alerts:
+    groups:
+    - name: gridos
+      interval: 30s
+      rules:
+      # High error rate alert
+      - alert: GridOSHighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{app="gridos",status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{app="gridos"}[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          app: gridos
+        annotations:
+          summary: "GridOS experiencing high error rate"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+          runbook_url: "https://wiki.example.com/runbooks/gridos-high-error-rate"
+      
+      # High response time
+      - alert: GridOSHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{app="gridos"}[5m])) by (le)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          app: gridos
+        annotations:
+          summary: "GridOS p95 latency is high"
+          description: "95th percentile latency is {{ $value }}s (threshold: 0.5s)"
+          runbook_url: "https://wiki.example.com/runbooks/gridos-high-latency"
+      
+      # Pod not ready
+      - alert: GridOSPodNotReady
+        expr: |
+          kube_pod_status_phase{namespace="gridos",phase!="Running"} == 1
+        for: 5m
+        labels:
+          severity: high
+          app: gridos
+        annotations:
+          summary: "GridOS pod not ready"
+          description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} is not ready"
+          runbook_url: "https://wiki.example.com/runbooks/gridos-pod-not-ready"
+      
+      # Database connection failures
+      - alert: GridOSDatabaseConnectionFailed
+        expr: |
+          rate(gridos_database_connection_errors_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: critical
+          app: gridos
+        annotations:
+          summary: "GridOS cannot connect to PostgreSQL"
+          description: "Database connection errors detected: {{ $value }} errors/sec"
+          runbook_url: "https://wiki.example.com/runbooks/gridos-db-connection"
+      
+      # SCADA data ingestion stopped
+      - alert: GridOSSCADAIngestionStopped
+        expr: |
+          rate(gridos_scada_readings_total[5m]) == 0
+        for: 10m
+        labels:
+          severity: critical
+          app: gridos
+        annotations:
+          summary: "GridOS SCADA data ingestion has stopped"
+          description: "No SCADA readings received in last 10 minutes"
+          runbook_url: "https://wiki.example.com/runbooks/gridos-ingestion-stopped"
+      
+      # Memory usage high
+      - alert: GridOSHighMemoryUsage
+        expr: |
+          (
+            sum(container_memory_working_set_bytes{namespace="gridos",container="gridos"})
+            /
+            sum(container_spec_memory_limit_bytes{namespace="gridos",container="gridos"})
+          ) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          app: gridos
+        annotations:
+          summary: "GridOS pod memory usage is high"
+          description: "Memory usage is {{ $value | humanizePercentage }} of limit"
+          runbook_url: "https://wiki.example.com/runbooks/gridos-high-memory"
+      
+      # CPU throttling
+      - alert: GridOSCPUThrottling
+        expr: |
+          rate(container_cpu_cfs_throttled_seconds_total{namespace="gridos",container="gridos"}[5m]) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          app: gridos
+        annotations:
+          summary: "GridOS CPU is being throttled"
+          description: "CPU throttling detected, consider increasing CPU limits"
+          runbook_url: "https://wiki.example.com/runbooks/gridos-cpu-throttling"
+      
+      # API completely down
+      - alert: GridOSAPIDown
+        expr: |
+          up{app="gridos"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          app: gridos
+        annotations:
+          summary: "GridOS API is completely down"
+          description: "All GridOS pods are unavailable"
+          runbook_url: "https://wiki.example.com/runbooks/gridos-api-down"
+      
+      # Pod crash looping
+      - alert: GridOSPodCrashLooping
+        expr: |
+          rate(kube_pod_container_status_restarts_total{namespace="gridos"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: high
+          app: gridos
+        annotations:
+          summary: "GridOS pod is crash looping"
+          description: "Pod {{ $labels.pod }} has restarted {{ $value }} times in last 15 minutes"
+          runbook_url: "https://wiki.example.com/runbooks/gridos-crashloop"
+      
+      # Database slow queries
+      - alert: GridOSDatabaseSlowQueries
+        expr: |
+          histogram_quantile(0.95,
+            rate(gridos_database_query_duration_seconds_bucket[5m])
+          ) > 1.0
+        for: 10m
+        labels:
+          severity: high
+          app: gridos
+        annotations:
+          summary: "Database queries are slow"
+          description: "95th percentile query time is {{ $value }}s (threshold: 1s)"
+          runbook_url: "https://wiki.example.com/runbooks/gridos-slow-queries"
+      
+      # High disk usage
+      - alert: GridOSHighDiskUsage
+        expr: |
+          (
+            node_filesystem_size_bytes{mountpoint="/data"} 
+            - node_filesystem_avail_bytes{mountpoint="/data"}
+          ) / node_filesystem_size_bytes{mountpoint="/data"} * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          app: gridos
+        annotations:
+          summary: "Disk usage critical"
+          description: "Disk {{ $labels.mountpoint }} is {{ $value }}% full"
+          runbook_url: "https://wiki.example.com/runbooks/gridos-disk-full"
+      
+      # PVC not bound
+      - alert: GridOSPersistentVolumeErrors
+        expr: |
+          kube_persistentvolumeclaim_status_phase{
+            namespace="gridos",
+            phase!="Bound"
+          } > 0
+        for: 2m
+        labels:
+          severity: critical
+          app: gridos
+        annotations:
+          summary: "PVC not bound"
+          description: "PVC {{ $labels.persistentvolumeclaim }} is in {{ $labels.phase }} state"
+          runbook_url: "https://wiki.example.com/runbooks/gridos-pvc-errors"
+      
+      # Certificate expiring soon
+      - alert: GridOSCertificateExpiringSoon
+        expr: |
+          (certmanager_certificate_expiration_timestamp_seconds - time()) / 86400 < 14
+        for: 1h
+        labels:
+          severity: warning
+          app: gridos
+        annotations:
+          summary: "TLS certificate expiring soon"
+          description: "Certificate {{ $labels.name }} expires in {{ $value }} days"
+          runbook_url: "https://wiki.example.com/runbooks/gridos-cert-expiry"
+      
+      # SLO violation - availability
+      - alert: GridOSSLOViolation
+        expr: |
+          (
+            sum(rate(http_requests_total{app="gridos",status!~"5.."}[30d]))
+            /
+            sum(rate(http_requests_total{app="gridos"}[30d]))
+          ) < 0.999
+        for: 5m
+        labels:
+          severity: critical
+          app: gridos
+        annotations:
+          summary: "SLO availability below target"
+          description: "Availability is {{ $value | humanizePercentage }} (target: 99.9%)"
+          runbook_url: "https://wiki.example.com/runbooks/gridos-slo-violation"

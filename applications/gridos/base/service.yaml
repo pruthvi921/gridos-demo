@@ -1,0 +1,59 @@
+---
+# GridOS Services - Stable and Canary
+# Required for Argo Rollouts traffic splitting
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: gridos-stable
+  labels:
+    app: gridos
+spec:
+  type: ClusterIP
+  selector:
+    app: gridos
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gridos-canary
+  labels:
+    app: gridos
+spec:
+  type: ClusterIP
+  selector:
+    app: gridos
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gridos
+  labels:
+    app: gridos
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path: "/health"
+spec:
+  type: ClusterIP
+  selector:
+    app: gridos
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hours for long-running SCADA connections

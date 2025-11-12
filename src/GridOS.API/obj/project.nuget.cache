@@ -1,0 +1,1097 @@
+{
+  "version": 2,
+  "dgSpecHash": "seQusB5Va+0=",
+  "success": false,
+  "projectFilePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\ptkad\\.nuget\\packages\\aspnetcore.healthchecks.npgsql\\8.0.0\\aspnetcore.healthchecks.npgsql.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\aspnetcore.healthchecks.ui.client\\8.0.0\\aspnetcore.healthchecks.ui.client.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\aspnetcore.healthchecks.ui.core\\8.0.0\\aspnetcore.healthchecks.ui.core.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\azure.core\\1.36.0\\azure.core.1.36.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\azure.identity\\1.10.4\\azure.identity.1.10.4.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\azure.security.keyvault.secrets\\4.5.0\\azure.security.keyvault.secrets.4.5.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.aspnetcore.openapi\\8.0.0\\microsoft.aspnetcore.openapi.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\6.0.0\\microsoft.bcl.asyncinterfaces.6.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.codeanalysis.analyzers\\3.3.3\\microsoft.codeanalysis.analyzers.3.3.3.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.codeanalysis.common\\4.5.0\\microsoft.codeanalysis.common.4.5.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.codeanalysis.csharp\\4.5.0\\microsoft.codeanalysis.csharp.4.5.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.codeanalysis.csharp.workspaces\\4.5.0\\microsoft.codeanalysis.csharp.workspaces.4.5.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.codeanalysis.workspaces.common\\4.5.0\\microsoft.codeanalysis.workspaces.common.4.5.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.entityframeworkcore\\8.0.0\\microsoft.entityframeworkcore.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.entityframeworkcore.abstractions\\8.0.0\\microsoft.entityframeworkcore.abstractions.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.entityframeworkcore.analyzers\\8.0.0\\microsoft.entityframeworkcore.analyzers.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.entityframeworkcore.design\\8.0.0\\microsoft.entityframeworkcore.design.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.entityframeworkcore.relational\\8.0.0\\microsoft.entityframeworkcore.relational.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.extensions.apidescription.server\\6.0.5\\microsoft.extensions.apidescription.server.6.0.5.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.extensions.caching.abstractions\\8.0.0\\microsoft.extensions.caching.abstractions.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.extensions.caching.memory\\8.0.0\\microsoft.extensions.caching.memory.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.extensions.configuration\\8.0.0\\microsoft.extensions.configuration.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.extensions.configuration.abstractions\\8.0.0\\microsoft.extensions.configuration.abstractions.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.extensions.configuration.binder\\8.0.0\\microsoft.extensions.configuration.binder.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.extensions.dependencyinjection\\8.0.0\\microsoft.extensions.dependencyinjection.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\8.0.0\\microsoft.extensions.dependencyinjection.abstractions.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.extensions.dependencymodel\\8.0.0\\microsoft.extensions.dependencymodel.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.extensions.diagnostics.abstractions\\8.0.0\\microsoft.extensions.diagnostics.abstractions.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.extensions.diagnostics.healthchecks\\8.0.0\\microsoft.extensions.diagnostics.healthchecks.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.extensions.diagnostics.healthchecks.abstractions\\8.0.0\\microsoft.extensions.diagnostics.healthchecks.abstractions.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.extensions.fileproviders.abstractions\\8.0.0\\microsoft.extensions.fileproviders.abstractions.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.extensions.hosting.abstractions\\8.0.0\\microsoft.extensions.hosting.abstractions.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.extensions.logging\\8.0.0\\microsoft.extensions.logging.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.extensions.logging.abstractions\\8.0.0\\microsoft.extensions.logging.abstractions.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.extensions.logging.configuration\\8.0.0\\microsoft.extensions.logging.configuration.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.extensions.options\\8.0.0\\microsoft.extensions.options.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.extensions.options.configurationextensions\\8.0.0\\microsoft.extensions.options.configurationextensions.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.extensions.primitives\\8.0.0\\microsoft.extensions.primitives.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.identity.client\\4.56.0\\microsoft.identity.client.4.56.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.identity.client.extensions.msal\\4.56.0\\microsoft.identity.client.extensions.msal.4.56.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.identitymodel.abstractions\\6.22.0\\microsoft.identitymodel.abstractions.6.22.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.netcore.platforms\\5.0.0\\microsoft.netcore.platforms.5.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\microsoft.openapi\\1.4.3\\microsoft.openapi.1.4.3.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\mono.texttemplating\\2.2.1\\mono.texttemplating.2.2.1.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\npgsql\\8.0.0\\npgsql.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\npgsql.entityframeworkcore.postgresql\\8.0.0\\npgsql.entityframeworkcore.postgresql.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\opentelemetry\\1.7.0\\opentelemetry.1.7.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\opentelemetry.api\\1.7.0\\opentelemetry.api.1.7.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\opentelemetry.api.providerbuilderextensions\\1.7.0\\opentelemetry.api.providerbuilderextensions.1.7.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\opentelemetry.exporter.prometheus.aspnetcore\\1.7.0-rc.1\\opentelemetry.exporter.prometheus.aspnetcore.1.7.0-rc.1.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\opentelemetry.extensions.hosting\\1.7.0\\opentelemetry.extensions.hosting.1.7.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\opentelemetry.instrumentation.aspnetcore\\1.7.0\\opentelemetry.instrumentation.aspnetcore.1.7.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\opentelemetry.instrumentation.entityframeworkcore\\1.0.0-beta.8\\opentelemetry.instrumentation.entityframeworkcore.1.0.0-beta.8.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\opentelemetry.instrumentation.http\\1.7.0\\opentelemetry.instrumentation.http.1.7.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\serilog\\3.1.1\\serilog.3.1.1.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\serilog.aspnetcore\\8.0.0\\serilog.aspnetcore.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\serilog.enrichers.environment\\2.3.0\\serilog.enrichers.environment.2.3.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\serilog.enrichers.thread\\3.1.0\\serilog.enrichers.thread.3.1.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\serilog.extensions.hosting\\8.0.0\\serilog.extensions.hosting.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\serilog.extensions.logging\\8.0.0\\serilog.extensions.logging.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\serilog.formatting.compact\\2.0.0\\serilog.formatting.compact.2.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\serilog.settings.configuration\\8.0.0\\serilog.settings.configuration.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\serilog.sinks.console\\5.0.1\\serilog.sinks.console.5.0.1.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\serilog.sinks.debug\\2.0.0\\serilog.sinks.debug.2.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\serilog.sinks.file\\5.0.0\\serilog.sinks.file.5.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\swashbuckle.aspnetcore\\6.5.0\\swashbuckle.aspnetcore.6.5.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\swashbuckle.aspnetcore.swagger\\6.5.0\\swashbuckle.aspnetcore.swagger.6.5.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\swashbuckle.aspnetcore.swaggergen\\6.5.0\\swashbuckle.aspnetcore.swaggergen.6.5.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\swashbuckle.aspnetcore.swaggerui\\6.5.0\\swashbuckle.aspnetcore.swaggerui.6.5.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.codedom\\4.4.0\\system.codedom.4.4.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.collections.immutable\\6.0.0\\system.collections.immutable.6.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.composition\\6.0.0\\system.composition.6.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.composition.attributedmodel\\6.0.0\\system.composition.attributedmodel.6.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.composition.convention\\6.0.0\\system.composition.convention.6.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.composition.hosting\\6.0.0\\system.composition.hosting.6.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.composition.runtime\\6.0.0\\system.composition.runtime.6.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.composition.typedparts\\6.0.0\\system.composition.typedparts.6.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.diagnostics.diagnosticsource\\8.0.0\\system.diagnostics.diagnosticsource.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.io.filesystem.accesscontrol\\5.0.0\\system.io.filesystem.accesscontrol.5.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.io.pipelines\\6.0.3\\system.io.pipelines.6.0.3.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.memory\\4.5.4\\system.memory.4.5.4.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.memory.data\\1.0.2\\system.memory.data.1.0.2.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.numerics.vectors\\4.5.0\\system.numerics.vectors.4.5.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.reflection.metadata\\6.0.1\\system.reflection.metadata.6.0.1.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.runtime.compilerservices.unsafe\\6.0.0\\system.runtime.compilerservices.unsafe.6.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.security.accesscontrol\\5.0.0\\system.security.accesscontrol.5.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.security.cryptography.protecteddata\\4.7.0\\system.security.cryptography.protecteddata.4.7.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.security.principal.windows\\5.0.0\\system.security.principal.windows.5.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.text.encoding.codepages\\6.0.0\\system.text.encoding.codepages.6.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.text.encodings.web\\8.0.0\\system.text.encodings.web.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.text.json\\8.0.0\\system.text.json.8.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.threading.channels\\6.0.0\\system.threading.channels.6.0.0.nupkg.sha512",
+    "C:\\Users\\ptkad\\.nuget\\packages\\system.threading.tasks.extensions\\4.5.4\\system.threading.tasks.extensions.4.5.4.nupkg.sha512"
+  ],
+  "logs": [
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Serilog.Sinks.Console",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Npgsql.EntityFrameworkCore.PostgreSQL",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Serilog.Enrichers.Thread",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.EntityFrameworkCore.Design",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Serilog.AspNetCore",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Swashbuckle.AspNetCore",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Serilog.Enrichers.Environment",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry.Exporter.Prometheus.AspNetCore",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry.Extensions.Hosting",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.AspNetCore.OpenApi",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry.Instrumentation.AspNetCore",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry.Instrumentation.Http",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry.Instrumentation.EntityFrameworkCore",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "AspNetCore.HealthChecks.NpgSql",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "AspNetCore.HealthChecks.UI.Client",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Azure.Identity",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Azure.Security.KeyVault.Secrets",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Npgsql.EntityFrameworkCore.PostgreSQL",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.EntityFrameworkCore.Design",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry.Exporter.Prometheus.AspNetCore",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry.Extensions.Hosting",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry.Instrumentation.AspNetCore",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry.Instrumentation.Http",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.OpenApi",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry.Instrumentation.EntityFrameworkCore",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "AspNetCore.HealthChecks.NpgSql",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "AspNetCore.HealthChecks.UI.Client",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.EntityFrameworkCore",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.EntityFrameworkCore.Relational",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.EntityFrameworkCore.Abstractions",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.EntityFrameworkCore",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.EntityFrameworkCore.Relational",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.EntityFrameworkCore.Abstractions",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Npgsql",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Npgsql",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Humanizer.Core",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.CodeAnalysis.CSharp.Workspaces",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Humanizer.Core",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.CodeAnalysis.CSharp.Workspaces",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.Extensions.DependencyModel",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Mono.TextTemplating",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Mono.TextTemplating",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Serilog.Settings.Configuration",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Serilog.Sinks.File",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Serilog",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Serilog",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry.Api.ProviderBuilderExtensions",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry.Api.ProviderBuilderExtensions",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry.Api.ProviderBuilderExtensions",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry.Api.ProviderBuilderExtensions",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.Extensions.Options",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.Extensions.Diagnostics.HealthChecks",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "AspNetCore.HealthChecks.UI.Core",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "AspNetCore.HealthChecks.UI.Core",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.Identity.Client",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.Identity.Client.Extensions.Msal",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Azure.Core",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Azure.Core",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.EntityFrameworkCore.Analyzers",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.Extensions.Caching.Memory",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.EntityFrameworkCore.Analyzers",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.Extensions.Caching.Memory",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.CodeAnalysis.Common",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.CodeAnalysis.Workspaces.Common",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.CodeAnalysis.Workspaces.Common",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.CodeAnalysis.Common",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.CodeAnalysis.CSharp",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.CodeAnalysis.CSharp",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "System.Text.Json",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "System.CodeDom",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "System.CodeDom",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Serilog",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry.Api.ProviderBuilderExtensions",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry.Api.ProviderBuilderExtensions",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.Extensions.Logging.Configuration",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry.Api",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry.Api",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.CodeAnalysis.Analyzers",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.Extensions.Caching.Abstractions",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.CodeAnalysis.Analyzers",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.Extensions.Caching.Abstractions",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "System.Reflection.Metadata",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "System.Reflection.Metadata",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "System.Composition",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "System.IO.Pipelines",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "System.Text.Encoding.CodePages",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "System.Composition",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "System.Text.Encoding.CodePages",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Microsoft.Extensions.Options.ConfigurationExtensions",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "System.Composition.AttributedModel",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "System.Composition.AttributedModel",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "System.Composition.Runtime",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "System.Composition.Hosting",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "System.Composition.TypedParts",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "System.Composition.Runtime",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "System.Composition.Hosting",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "System.Composition.Convention",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "System.Composition.TypedParts",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1301",
+      "level": "Error",
+      "message": "Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.\r\n  Response status code does not indicate success: 401 (Unauthorized).",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "System.Composition.Convention",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1900",
+      "level": "Warning",
+      "message": "Error occurred while getting package vulnerability data: Unable to load the service index for source https://pkgs.dev.azure.com/NetsMS/Netaxept/_packaging/Nextgen/nuget/v3/index.json.",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "warningLevel": 1,
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "targetGraphs": []
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Azure.Identity' 1.10.4 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-m5vv-6r4h-3vj9",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "warningLevel": 1,
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Azure.Identity",
+      "targetGraphs": [
+        "net8.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'Azure.Identity' 1.10.4 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-wvxc-855f-jvrv",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "warningLevel": 1,
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "Azure.Identity",
+      "targetGraphs": [
+        "net8.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'OpenTelemetry.Instrumentation.AspNetCore' 1.7.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-vh2m-22xx-q94f",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "warningLevel": 1,
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry.Instrumentation.AspNetCore",
+      "targetGraphs": [
+        "net8.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'OpenTelemetry.Instrumentation.Http' 1.7.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-vh2m-22xx-q94f",
+      "projectPath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "warningLevel": 1,
+      "filePath": "c:\\Users\\ptkad\\source\\repos\\sharedinfra\\src\\GridOS.API\\GridOS.API.csproj",
+      "libraryId": "OpenTelemetry.Instrumentation.Http",
+      "targetGraphs": [
+        "net8.0"
+      ]
+    }
+  ]
+}

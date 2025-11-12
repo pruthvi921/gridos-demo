@@ -1,0 +1,222 @@
+# Argo CD Helm Values - Production Configuration
+# This file configures Argo CD for high availability, security, and observability
+
+# Global configuration
+global:
+  domain: argocd.gridos.example.com  # Update with your actual domain
+
+# Redis HA for session storage and caching
+redis-ha:
+  enabled: true
+  haproxy:
+    enabled: true
+    replicas: 3
+    metrics:
+      enabled: true
+
+# Server configuration
+server:
+  replicas: 2  # HA mode
+  
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 75
+    targetMemoryUtilizationPercentage: 75
+  
+  # Ingress configuration
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    hosts:
+      - argocd.gridos.example.com
+    tls:
+      - secretName: argocd-server-tls
+        hosts:
+          - argocd.gridos.example.com
+  
+  # Metrics and monitoring
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+  
+  # Resources
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Repository server configuration
+repoServer:
+  replicas: 2  # HA mode
+  
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 75
+    targetMemoryUtilizationPercentage: 75
+  
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+  
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+# Application controller configuration
+controller:
+  replicas: 2  # HA mode
+  
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+  
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+
+# ApplicationSet controller (for generating Applications dynamically)
+applicationSet:
+  replicas: 2
+  
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+  
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Notifications controller (for alerts and notifications)
+notifications:
+  enabled: true
+  
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+  
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Dex (SSO/OIDC) - disabled by default, enable for enterprise SSO
+dex:
+  enabled: false
+
+# Argo CD configuration
+configs:
+  # Repository credentials (if using private repos)
+  credentialTemplates:
+    github-creds:
+      url: https://github.com/your-org
+      # githubAppID: "123456"  # Uncomment and configure for GitHub App auth
+      # githubAppInstallationID: "789012"
+      # githubAppPrivateKey: |
+      #   -----BEGIN RSA PRIVATE KEY-----
+      #   ...
+      #   -----END RSA PRIVATE KEY-----
+  
+  # Argo CD server configuration
+  params:
+    server.insecure: false  # Always use TLS in production
+    server.rootpath: ""
+    server.disable.auth: false
+    
+  # RBAC configuration
+  rbac:
+    policy.default: role:readonly  # Default read-only access
+    policy.csv: |
+      # Admin role
+      p, role:admin, applications, *, */*, allow
+      p, role:admin, clusters, *, *, allow
+      p, role:admin, repositories, *, *, allow
+      p, role:admin, projects, *, *, allow
+      
+      # Developer role - can deploy to dev/test
+      p, role:developer, applications, *, dev/*, allow
+      p, role:developer, applications, *, test/*, allow
+      p, role:developer, applications, get, */*, allow
+      p, role:developer, applications, sync, dev/*, allow
+      p, role:developer, applications, sync, test/*, allow
+      
+      # Production deployer - requires manual approval
+      p, role:prod-deployer, applications, get, */*, allow
+      p, role:prod-deployer, applications, sync, prod/*, allow
+      
+      # Assign admin role to specific users/groups
+      g, admin@example.com, role:admin
+  
+  # Repositories configuration
+  repositories:
+    # Add your GitHub repository here
+    # This will be auto-discovered from Application manifests
+    # or you can explicitly define it here for private repos
+  
+  # Git commit message
+  git:
+    commit-message-template: |
+      {{.app}}: {{.message}}
+      
+      Automated by Argo CD
+
+# Resource customizations (health checks, actions)
+resource.customizations: |
+  argoproj.io/Rollout:
+    health.lua: |
+      hs = {}
+      if obj.status ~= nil then
+        if obj.status.conditions ~= nil then
+          for i, condition in ipairs(obj.status.conditions) do
+            if condition.type == "Progressing" and condition.reason == "ProgressDeadlineExceeded" then
+              hs.status = "Degraded"
+              hs.message = condition.message
+              return hs
+            end
+            if condition.type == "Progressing" and condition.status == "False" then
+              hs.status = "Degraded"
+              hs.message = condition.message
+              return hs
+            end
+          end
+        end
+        if obj.status.updatedReplicas == obj.spec.replicas then
+          hs.status = "Healthy"
+          hs.message = "All replicas updated"
+          return hs
+        end
+      end
+      hs.status = "Progressing"
+      hs.message = "Waiting for rollout to complete"
+      return hs

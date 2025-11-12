@@ -1,0 +1,211 @@
+---
+# Automated Runbook: High Error Rate Detection and Rollback
+# Triggered when: Error rate > 5% for 5 minutes after a deployment
+#
+# Actions:
+# 1. Detect if recent deployment occurred
+# 2. Collect diagnostic data
+# 3. Automatically rollback to previous version
+# 4. Verify error rate returns to normal
+# 5. Notify team via Slack
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: runbook-high-error-rollback-
+  namespace: monitoring
+  labels:
+    runbook: high-error-rate
+    app: gridos
+spec:
+  ttlSecondsAfterFinished: 86400  # Keep job for 24 hours
+  template:
+    metadata:
+      labels:
+        runbook: high-error-rate
+    spec:
+      serviceAccountName: runbook-executor
+      restartPolicy: Never
+      containers:
+      - name: remediation
+        image: gridosacr.azurecr.io/kubectl:latest
+        env:
+        - name: NAMESPACE
+          value: "gridos"
+        - name: APP_NAME
+          value: "gridos"
+        - name: SLACK_WEBHOOK
+          valueFrom:
+            secretKeyRef:
+              name: alert-secrets
+              key: slack-webhook-url
+        - name: ERROR_THRESHOLD
+          value: "0.05"
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          
+          echo "=========================================="
+          echo "GridOS High Error Rate Runbook Started"
+          echo "Time: $(date)"
+          echo "=========================================="
+          
+          # Function to post to Slack
+          post_slack() {
+            local message="$1"
+            curl -X POST "$SLACK_WEBHOOK" \
+              -H 'Content-Type: application/json' \
+              -d "{\"text\":\"🤖 *Automated Runbook*: $message\"}"
+          }
+          
+          post_slack "High error rate detected in GridOS. Starting automated diagnosis..."
+          
+          # 1. Check recent deployments
+          echo "Checking for recent deployments..."
+          LAST_DEPLOYMENT=$(kubectl get rollout $APP_NAME -n $NAMESPACE \
+            -o jsonpath='{.status.currentPodHash}')
+          LAST_DEPLOYMENT_TIME=$(kubectl get rollout $APP_NAME -n $NAMESPACE \
+            -o jsonpath='{.metadata.annotations.kubectl\.kubernetes\.io/last-applied-configuration}' | \
+            jq -r '.metadata.annotations."deployment.timestamp"' 2>/dev/null || echo "unknown")
+          
+          echo "Current deployment: $LAST_DEPLOYMENT"
+          echo "Deployment time: $LAST_DEPLOYMENT_TIME"
+          
+          # 2. Collect current error rate from Prometheus
+          echo "Querying current error rate..."
+          CURRENT_ERROR_RATE=$(curl -s 'http://kube-prometheus-stack-prometheus.monitoring:9090/api/v1/query' \
+            --data-urlencode 'query=sum(rate(http_requests_total{app="gridos",status=~"5.."}[5m]))/sum(rate(http_requests_total{app="gridos"}[5m]))' | \
+            jq -r '.data.result[0].value[1]')
+          
+          echo "Current error rate: $CURRENT_ERROR_RATE"
+          
+          if (( $(echo "$CURRENT_ERROR_RATE > $ERROR_THRESHOLD" | bc -l) )); then
+            echo "⚠️  Error rate $CURRENT_ERROR_RATE exceeds threshold $ERROR_THRESHOLD"
+            
+            # 3. Collect pod logs for analysis
+            echo "Collecting pod logs..."
+            kubectl logs -n $NAMESPACE -l app=$APP_NAME --tail=100 --since=30m > /tmp/error-logs.txt
+            
+            # Check for common error patterns
+            echo "Analyzing error patterns..."
+            DATABASE_ERRORS=$(grep -c "database connection" /tmp/error-logs.txt || echo 0)
+            MEMORY_ERRORS=$(grep -c "OutOfMemory" /tmp/error-logs.txt || echo 0)
+            TIMEOUT_ERRORS=$(grep -c "timeout" /tmp/error-logs.txt || echo 0)
+            
+            echo "Database errors: $DATABASE_ERRORS"
+            echo "Memory errors: $MEMORY_ERRORS"
+            echo "Timeout errors: $TIMEOUT_ERRORS"
+            
+            # 4. Check if deployment was recent (last 30 minutes)
+            DEPLOYMENT_AGE_SECONDS=$(( $(date +%s) - $(date -d "$LAST_DEPLOYMENT_TIME" +%s 2>/dev/null || echo 0) ))
+            echo "Deployment age: $DEPLOYMENT_AGE_SECONDS seconds"
+            
+            if [ $DEPLOYMENT_AGE_SECONDS -lt 1800 ]; then
+              # Recent deployment detected - initiate rollback
+              echo "🔄 Recent deployment detected. Initiating automatic rollback..."
+              
+              post_slack "Recent deployment causing errors. Initiating automatic rollback..."
+              
+              # Perform rollback using Argo Rollouts
+              kubectl argo rollouts undo rollout/$APP_NAME -n $NAMESPACE
+              
+              echo "Waiting for rollback to complete..."
+              kubectl argo rollouts status rollout/$APP_NAME -n $NAMESPACE --timeout 5m
+              
+              # 5. Verify error rate after rollback
+              sleep 60  # Wait for metrics to update
+              
+              NEW_ERROR_RATE=$(curl -s 'http://kube-prometheus-stack-prometheus.monitoring:9090/api/v1/query' \
+                --data-urlencode 'query=sum(rate(http_requests_total{app="gridos",status=~"5.."}[5m]))/sum(rate(http_requests_total{app="gridos"}[5m]))' | \
+                jq -r '.data.result[0].value[1]')
+              
+              echo "Error rate after rollback: $NEW_ERROR_RATE"
+              
+              if (( $(echo "$NEW_ERROR_RATE < $ERROR_THRESHOLD" | bc -l) )); then
+                echo "✅ Rollback successful! Error rate returned to normal."
+                post_slack "✅ Automatic rollback completed successfully. Error rate: $NEW_ERROR_RATE (was: $CURRENT_ERROR_RATE)"
+              else
+                echo "❌ Error rate still high after rollback. Manual intervention required."
+                post_slack "❌ Rollback completed but error rate still high ($NEW_ERROR_RATE). Manual intervention required. Paging on-call."
+                
+                # TODO: Trigger PagerDuty incident
+              fi
+            else
+              # Not a recent deployment - investigate other causes
+              echo "Deployment is not recent. Checking other potential causes..."
+              
+              if [ $DATABASE_ERRORS -gt 10 ]; then
+                echo "🔍 High number of database errors detected"
+                post_slack "🔍 High error rate not from recent deployment. Database issues detected ($DATABASE_ERRORS errors). Checking database health..."
+                
+                # Check PostgreSQL status
+                DB_POD=$(kubectl get pods -n postgres -l app=postgresql -o jsonpath='{.items[0].metadata.name}')
+                DB_STATUS=$(kubectl get pod $DB_POD -n postgres -o jsonpath='{.status.phase}')
+                
+                echo "Database pod: $DB_POD, Status: $DB_STATUS"
+                
+                if [ "$DB_STATUS" != "Running" ]; then
+                  post_slack "⚠️ Database pod not running. Status: $DB_STATUS. Escalating to on-call."
+                fi
+              fi
+              
+              if [ $MEMORY_ERRORS -gt 5 ]; then
+                echo "🔍 Memory errors detected - may need pod restart or scaling"
+                post_slack "🔍 Memory errors detected. Restarting pods to recover..."
+                
+                # Restart pods
+                kubectl rollout restart deployment/$APP_NAME -n $NAMESPACE
+              fi
+              
+              post_slack "⚠️ High error rate detected but no obvious cause. Manual investigation required. Check runbook: https://wiki.example.com/runbooks/gridos-high-error-rate"
+            fi
+          else
+            echo "✅ Error rate is now within normal range. No action needed."
+            post_slack "✅ Error rate returned to normal ($CURRENT_ERROR_RATE). Runbook exiting."
+          fi
+          
+          echo "=========================================="
+          echo "Runbook Completed"
+          echo "=========================================="
+---
+# ServiceAccount for runbook execution
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: runbook-executor
+  namespace: monitoring
+---
+# ClusterRole for runbook operations
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: runbook-executor
+rules:
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list", "patch", "update"]
+- apiGroups: ["argoproj.io"]
+  resources: ["rollouts"]
+  verbs: ["get", "list", "patch", "update"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+---
+# ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: runbook-executor
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: runbook-executor
+subjects:
+- kind: ServiceAccount
+  name: runbook-executor
+  namespace: monitoring

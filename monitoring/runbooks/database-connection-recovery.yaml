@@ -1,0 +1,184 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gridos-database-recovery
+  namespace: monitoring
+  labels:
+    app: gridos-runbook
+    runbook: database-connection-recovery
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 2
+  template:
+    spec:
+      serviceAccountName: gridos-runbook-sa
+      restartPolicy: Never
+      containers:
+      - name: database-recovery
+        image: bitnami/kubectl:latest
+        env:
+        - name: PROMETHEUS_URL
+          value: "http://kube-prometheus-stack-prometheus.monitoring:9090"
+        - name: SLACK_WEBHOOK
+          valueFrom:
+            secretKeyRef:
+              name: alertmanager-slack
+              key: webhook_url
+        - name: GRIDOS_NAMESPACE
+          value: "gridos"
+        command: ["/bin/bash"]
+        args:
+        - -c
+        - |
+          #!/bin/bash
+          set -e
+          
+          echo "=================================="
+          echo "Database Connection Recovery"
+          echo "Started: $(date)"
+          echo "=================================="
+          
+          # Function to query Prometheus
+          query_prometheus() {
+            local query="$1"
+            curl -s -G --data-urlencode "query=${query}" \
+              "${PROMETHEUS_URL}/api/v1/query" | \
+              jq -r '.data.result[0].value[1] // "0"'
+          }
+          
+          # Function to post to Slack
+          post_slack() {
+            local message="$1"
+            curl -X POST "${SLACK_WEBHOOK}" \
+              -H 'Content-Type: application/json' \
+              -d "{\"text\": \"${message}\"}"
+          }
+          
+          # Check database connection errors
+          DB_ERRORS=$(query_prometheus 'rate(gridos_database_connection_errors_total[5m])')
+          echo "Current database error rate: ${DB_ERRORS} errors/sec"
+          
+          if (( $(echo "${DB_ERRORS} < 0.01" | bc -l) )); then
+            echo "Database connections are healthy now. No action needed."
+            post_slack "✅ Database Recovery: Connections restored automatically"
+            exit 0
+          fi
+          
+          echo "Database connection errors detected. Starting recovery..."
+          
+          # Step 1: Check if PostgreSQL is accessible
+          echo "Checking PostgreSQL health..."
+          POSTGRES_HOST=$(kubectl get secret gridos-db-secret -n ${GRIDOS_NAMESPACE} -o jsonpath='{.data.host}' | base64 -d)
+          POSTGRES_PORT=$(kubectl get secret gridos-db-secret -n ${GRIDOS_NAMESPACE} -o jsonpath='{.data.port}' | base64 -d)
+          
+          if nc -zv ${POSTGRES_HOST} ${POSTGRES_PORT} 2>&1 | grep -q "succeeded"; then
+            echo "✅ PostgreSQL server is reachable"
+            DB_REACHABLE=true
+          else
+            echo "❌ PostgreSQL server is NOT reachable"
+            DB_REACHABLE=false
+          fi
+          
+          # Step 2: Check connection pool status
+          echo "Checking connection pool..."
+          ACTIVE_CONNECTIONS=$(query_prometheus 'gridos_database_connections_active')
+          MAX_CONNECTIONS=$(query_prometheus 'gridos_database_connections_max')
+          echo "Active connections: ${ACTIVE_CONNECTIONS}/${MAX_CONNECTIONS}"
+          
+          # Step 3: Restart application pods
+          echo "Restarting GridOS pods to reset connection pool..."
+          kubectl rollout restart deployment gridos -n ${GRIDOS_NAMESPACE}
+          
+          echo "Waiting for rollout to complete..."
+          kubectl rollout status deployment gridos -n ${GRIDOS_NAMESPACE} --timeout=5m
+          
+          # Step 4: Wait and verify
+          echo "Waiting 60 seconds for connections to stabilize..."
+          sleep 60
+          
+          # Step 5: Check error rate again
+          NEW_DB_ERRORS=$(query_prometheus 'rate(gridos_database_connection_errors_total[5m])')
+          echo "New database error rate: ${NEW_DB_ERRORS} errors/sec"
+          
+          if (( $(echo "${NEW_DB_ERRORS} < 0.01" | bc -l) )); then
+            echo "✅ Database connection recovery successful!"
+            
+            post_slack "✅ *Database Recovery Complete*
+          *Action:* Restarted GridOS pods
+          *Before:* ${DB_ERRORS} errors/sec
+          *After:* ${NEW_DB_ERRORS} errors/sec
+          *Time:* $(date)
+          *Logs:* kubectl logs -l app=gridos -n ${GRIDOS_NAMESPACE}"
+            
+            exit 0
+          else
+            echo "⚠️ Database errors persist after restart"
+            
+            # Collect diagnostics
+            echo "Collecting diagnostics..."
+            POD_LOGS=$(kubectl logs -l app=gridos -n ${GRIDOS_NAMESPACE} --tail=50 | grep -i "database\|connection" || echo "No database errors in logs")
+            
+            post_slack "⚠️ *Database Recovery: Manual Intervention Required*
+          *Issue:* Database connection errors persist after pod restart
+          *Current Error Rate:* ${NEW_DB_ERRORS} errors/sec
+          *Database Reachable:* ${DB_REACHABLE}
+          *Active Connections:* ${ACTIVE_CONNECTIONS}/${MAX_CONNECTIONS}
+          *Recent Logs:*
+          \`\`\`${POD_LOGS}\`\`\`
+          
+          *Action Required:*
+          1. Check PostgreSQL server status
+          2. Verify network connectivity
+          3. Check Azure PostgreSQL Flexible Server portal
+          4. Review connection pool configuration
+          
+          *Commands:*
+          \`kubectl logs -l app=gridos -n ${GRIDOS_NAMESPACE}\`
+          \`kubectl describe pod -l app=gridos -n ${GRIDOS_NAMESPACE}\`"
+            
+            exit 1
+          fi
+          
+          echo "=================================="
+          echo "Completed: $(date)"
+          echo "=================================="
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gridos-runbook-sa
+  namespace: monitoring
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gridos-runbook-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "patch"]
+- apiGroups: ["apps"]
+  resources: ["deployments/rollout"]
+  verbs: ["create"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gridos-runbook-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gridos-runbook-role
+subjects:
+- kind: ServiceAccount
+  name: gridos-runbook-sa
+  namespace: monitoring

@@ -1,0 +1,99 @@
+---
+# Kustomize Overlay for Test Environment
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ../../base
+
+namespace: gridos
+
+commonLabels:
+  environment: test
+
+commonAnnotations:
+  environment: test
+  cost-center: qa
+
+images:
+- name: gridosacr.azurecr.io/gridos
+  newName: testgridosacr.azurecr.io/gridos
+  newTag: latest
+
+replicas:
+- name: gridos
+  count: 3
+
+patches:
+# ConfigMap for test
+- target:
+    kind: ConfigMap
+    name: gridos-config
+  patch: |-
+    - op: replace
+      path: /data/log-level
+      value: info
+    - op: replace
+      path: /data/metrics-enabled
+      value: "true"
+
+# HPA for test
+- target:
+    kind: HorizontalPodAutoscaler
+    name: gridos-hpa
+  patch: |-
+    - op: replace
+      path: /spec/minReplicas
+      value: 3
+    - op: replace
+      path: /spec/maxReplicas
+      value: 8
+
+# Resources for test (medium)
+- target:
+    kind: Rollout
+    name: gridos
+  patch: |-
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/cpu
+      value: 750m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/memory
+      value: 768Mi
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/cpu
+      value: 375m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/memory
+      value: 384Mi
+
+# Ingress for test
+- target:
+    kind: Ingress
+    name: gridos-stable
+  patch: |-
+    - op: replace
+      path: /spec/rules/0/host
+      value: gridos-test.example.com
+    - op: replace
+      path: /spec/tls/0/hosts/0
+      value: gridos-test.example.com
+    - op: replace
+      path: /spec/tls/0/secretName
+      value: gridos-test-tls
+
+# Rollout strategy for test (standard timing)
+- target:
+    kind: Rollout
+    name: gridos
+  patch: |-
+    - op: replace
+      path: /spec/strategy/canary/steps/0/pause/duration
+      value: 1m
+    - op: replace
+      path: /spec/strategy/canary/steps/2/pause/duration
+      value: 2m
+    - op: replace
+      path: /spec/strategy/canary/steps/4/pause/duration
+      value: 2m

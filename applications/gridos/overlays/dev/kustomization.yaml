@@ -1,0 +1,105 @@
+---
+# Kustomize Overlay for Development Environment
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Reference to base
+resources:
+- ../../base
+
+# Namespace for dev
+namespace: gridos
+
+# Dev-specific labels
+commonLabels:
+  environment: dev
+
+# Dev-specific annotations
+commonAnnotations:
+  environment: dev
+  cost-center: development
+
+# Image tag override (updated by CI pipeline)
+images:
+- name: gridosacr.azurecr.io/gridos
+  newName: devgridosacr.azurecr.io/gridos
+  newTag: latest
+
+# Replicas for dev (smaller)
+replicas:
+- name: gridos
+  count: 2
+
+# ConfigMap patches for dev
+patches:
+- target:
+    kind: ConfigMap
+    name: gridos-config
+  patch: |-
+    - op: replace
+      path: /data/log-level
+      value: debug
+    - op: replace
+      path: /data/metrics-enabled
+      value: "true"
+
+# HPA patches for dev (lower limits)
+- target:
+    kind: HorizontalPodAutoscaler
+    name: gridos-hpa
+  patch: |-
+    - op: replace
+      path: /spec/minReplicas
+      value: 2
+    - op: replace
+      path: /spec/maxReplicas
+      value: 5
+
+# Resource patches for dev (smaller limits)
+- target:
+    kind: Rollout
+    name: gridos
+  patch: |-
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/cpu
+      value: 500m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/memory
+      value: 512Mi
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/cpu
+      value: 250m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/memory
+      value: 256Mi
+
+# Ingress hostname for dev
+- target:
+    kind: Ingress
+    name: gridos-stable
+  patch: |-
+    - op: replace
+      path: /spec/rules/0/host
+      value: gridos-dev.example.com
+    - op: replace
+      path: /spec/tls/0/hosts/0
+      value: gridos-dev.example.com
+    - op: replace
+      path: /spec/tls/0/secretName
+      value: gridos-dev-tls
+
+# Rollout strategy for dev (faster canary)
+- target:
+    kind: Rollout
+    name: gridos
+  patch: |-
+    - op: replace
+      path: /spec/strategy/canary/steps/0/pause/duration
+      value: 30s
+    - op: replace
+      path: /spec/strategy/canary/steps/2/pause/duration
+      value: 1m
+    - op: replace
+      path: /spec/strategy/canary/steps/4/pause/duration
+      value: 1m

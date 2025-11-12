@@ -1,0 +1,225 @@
+---
+# Analysis Templates for Argo Rollouts
+# These define the metrics queries to validate canary health
+
+# Success Rate Analysis - Must maintain > 99% success rate
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+  labels:
+    app: gridos
+spec:
+  args:
+  - name: service-name
+  - name: namespace
+    value: gridos
+  metrics:
+  - name: success-rate
+    interval: 1m
+    successCondition: result >= 0.99
+    failureLimit: 3  # Fail after 3 consecutive failures
+    provider:
+      prometheus:
+        address: http://prometheus-server.monitoring.svc.cluster.local:9090
+        query: |
+          sum(rate(
+            http_requests_total{
+              service="{{args.service-name}}",
+              namespace="{{args.namespace}}",
+              status!~"5.."
+            }[1m]
+          )) /
+          sum(rate(
+            http_requests_total{
+              service="{{args.service-name}}",
+              namespace="{{args.namespace}}"
+            }[1m]
+          ))
+
+---
+# Latency Analysis - P99 latency must be < 500ms
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: latency
+  labels:
+    app: gridos
+spec:
+  args:
+  - name: service-name
+  - name: namespace
+    value: gridos
+  metrics:
+  - name: p99-latency
+    interval: 1m
+    successCondition: result < 0.5  # 500ms in seconds
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus-server.monitoring.svc.cluster.local:9090
+        query: |
+          histogram_quantile(0.99,
+            sum(rate(
+              http_request_duration_seconds_bucket{
+                service="{{args.service-name}}",
+                namespace="{{args.namespace}}"
+              }[1m]
+            )) by (le)
+          )
+
+---
+# Error Rate Analysis - Error rate must be < 1%
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: error-rate
+  labels:
+    app: gridos
+spec:
+  args:
+  - name: service-name
+  - name: namespace
+    value: gridos
+  metrics:
+  - name: error-rate
+    interval: 1m
+    successCondition: result < 0.01  # Less than 1%
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus-server.monitoring.svc.cluster.local:9090
+        query: |
+          sum(rate(
+            http_requests_total{
+              service="{{args.service-name}}",
+              namespace="{{args.namespace}}",
+              status=~"5.."
+            }[1m]
+          )) /
+          sum(rate(
+            http_requests_total{
+              service="{{args.service-name}}",
+              namespace="{{args.namespace}}"
+            }[1m]
+          ))
+
+---
+# CPU Usage Analysis - Ensure canary isn't using excessive CPU
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: cpu-usage
+  labels:
+    app: gridos
+spec:
+  args:
+  - name: service-name
+  - name: namespace
+    value: gridos
+  metrics:
+  - name: cpu-usage
+    interval: 1m
+    successCondition: result < 0.9  # Less than 90% CPU
+    failureLimit: 5  # Allow more failures for resource metrics
+    provider:
+      prometheus:
+        address: http://prometheus-server.monitoring.svc.cluster.local:9090
+        query: |
+          sum(rate(
+            container_cpu_usage_seconds_total{
+              namespace="{{args.namespace}}",
+              pod=~"{{args.service-name}}-.*"
+            }[1m]
+          )) /
+          sum(
+            container_spec_cpu_quota{
+              namespace="{{args.namespace}}",
+              pod=~"{{args.service-name}}-.*"
+            } / 
+            container_spec_cpu_period{
+              namespace="{{args.namespace}}",
+              pod=~"{{args.service-name}}-.*"
+            }
+          )
+
+---
+# Memory Usage Analysis
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: memory-usage
+  labels:
+    app: gridos
+spec:
+  args:
+  - name: service-name
+  - name: namespace
+    value: gridos
+  metrics:
+  - name: memory-usage
+    interval: 1m
+    successCondition: result < 0.9  # Less than 90% memory
+    failureLimit: 5
+    provider:
+      prometheus:
+        address: http://prometheus-server.monitoring.svc.cluster.local:9090
+        query: |
+          sum(
+            container_memory_working_set_bytes{
+              namespace="{{args.namespace}}",
+              pod=~"{{args.service-name}}-.*"
+            }
+          ) /
+          sum(
+            container_spec_memory_limit_bytes{
+              namespace="{{args.namespace}}",
+              pod=~"{{args.service-name}}-.*"
+            }
+          )
+
+---
+# Combined Analysis Template - All metrics in one
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: comprehensive-analysis
+  labels:
+    app: gridos
+spec:
+  args:
+  - name: service-name
+  - name: namespace
+    value: gridos
+  metrics:
+  - name: success-rate
+    interval: 1m
+    successCondition: result >= 0.99
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus-server.monitoring.svc.cluster.local:9090
+        query: |
+          sum(rate(http_requests_total{service="{{args.service-name}}",namespace="{{args.namespace}}",status!~"5.."}[1m])) /
+          sum(rate(http_requests_total{service="{{args.service-name}}",namespace="{{args.namespace}}"}[1m]))
+  
+  - name: latency
+    interval: 1m
+    successCondition: result < 0.5
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus-server.monitoring.svc.cluster.local:9090
+        query: |
+          histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{service="{{args.service-name}}",namespace="{{args.namespace}}"}[1m])) by (le))
+  
+  - name: error-rate
+    interval: 1m
+    successCondition: result < 0.01
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus-server.monitoring.svc.cluster.local:9090
+        query: |
+          sum(rate(http_requests_total{service="{{args.service-name}}",namespace="{{args.namespace}}",status=~"5.."}[1m])) /
+          sum(rate(http_requests_total{service="{{args.service-name}}",namespace="{{args.namespace}}"}[1m]))

@@ -1,0 +1,165 @@
+{
+  "dashboard": {
+    "title": "GridOS - SLI/SLO Dashboard",
+    "tags": ["gridos", "sre", "slo"],
+    "timezone": "browser",
+    "editable": true,
+    "refresh": "1m",
+    "time": {
+      "from": "now-30d",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "title": "Availability SLO (99.9% Target)",
+        "type": "gauge",
+        "gridPos": {"x": 0, "y": 0, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "(1 - (sum(rate(http_requests_total{job=\"gridos-api\",status=~\"5..\"}[30d])) / sum(rate(http_requests_total{job=\"gridos-api\"}[30d])))) * 100",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 99,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                {"value": 99, "color": "red"},
+                {"value": 99.5, "color": "yellow"},
+                {"value": 99.9, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Latency SLO (p95 < 200ms)",
+        "type": "gauge",
+        "gridPos": {"x": 8, "y": 0, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"gridos-api\"}[30d])) by (le)) * 1000",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "min": 0,
+            "max": 500,
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 200, "color": "yellow"},
+                {"value": 400, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Error Budget Remaining (30 days)",
+        "type": "gauge",
+        "gridPos": {"x": 16, "y": 0, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "((43.2 - (43.2 * (1 - (1 - (sum(rate(http_requests_total{job=\"gridos-api\",status=~\"5..\"}[30d])) / sum(rate(http_requests_total{job=\"gridos-api\"}[30d])))))) / 43.2) * 100",
+            "refId": "A"
+          }
+        ],
+        "description": "Based on 99.9% SLO (43.2 minutes downtime/month)",
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 25, "color": "yellow"},
+                {"value": 50, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Error Budget Burn Rate (1h)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "(sum(rate(http_requests_total{job=\"gridos-api\",status=~\"5..\"}[1h])) / sum(rate(http_requests_total{job=\"gridos-api\"}[1h]))) / (1 - 0.999)",
+            "legendFormat": "1h Burn Rate",
+            "refId": "A"
+          }
+        ],
+        "alert": {
+          "name": "Fast Error Budget Burn",
+          "conditions": [
+            {
+              "evaluator": {"params": [14.4], "type": "gt"},
+              "query": {"params": ["A", "5m", "now"]}
+            }
+          ],
+          "frequency": "60s",
+          "message": "Error budget burning at 14.4x rate. Will exhaust budget in 2 days."
+        }
+      },
+      {
+        "title": "Incidents This Month",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "count(ALERTS{alertname=~\".*\",severity=\"critical\",alertstate=\"firing\"} offset 30d) or vector(0)",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "title": "MTTR (Mean Time To Recovery)",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "avg(gridos_incident_resolution_duration_seconds) / 60",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "m",
+            "decimals": 1
+          }
+        }
+      },
+      {
+        "title": "Request Success Rate (30d)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 16, "w": 24, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{job=\"gridos-api\",status!~\"5..\"}[1h])) / sum(rate(http_requests_total{job=\"gridos-api\"}[1h])) * 100",
+            "legendFormat": "Success Rate",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "percent",
+            "max": 100,
+            "min": 99
+          }
+        ]
+      }
+    ]
+  }
+}

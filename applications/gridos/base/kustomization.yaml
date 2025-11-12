@@ -1,0 +1,52 @@
+---
+# Kustomize Base Configuration
+# Defines all common resources for GridOS
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Namespace where resources will be created
+namespace: gridos
+
+# Common labels applied to all resources
+commonLabels:
+  app: gridos
+  managed-by: argocd
+
+# Common annotations
+commonAnnotations:
+  team: sre
+  project: gridos-scada
+
+# Resources to include
+resources:
+- deployment.yaml
+- service.yaml
+- ingress.yaml
+- config.yaml
+- autoscaling.yaml
+- rollout.yaml
+- analysis-templates.yaml
+
+# ConfigMap generator (if needed for dynamic config)
+configMapGenerator:
+- name: gridos-build-info
+  literals:
+  - version=latest
+  - build-date=unknown
+
+# Secret generator (for non-sensitive build info)
+secretGenerator: []
+
+# Images to be used (can be overridden by overlays)
+images:
+- name: gridosacr.azurecr.io/gridos
+  newTag: latest
+
+# Patches or strategic merge patches
+patches: []
+
+# Replicas (can be overridden by overlays)
+replicas:
+- name: gridos
+  count: 3

@@ -1,0 +1,163 @@
+---
+# Argo CD Project for GridOS Application
+# Projects provide logical grouping and RBAC for applications
+
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: gridos
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: GridOS SCADA Monitoring System
+  
+  # Source repositories that applications can deploy from
+  sourceRepos:
+  - 'https://github.com/YOUR_ORG/sharedinfra'
+  - 'https://github.com/YOUR_ORG/gridos-app'
+  
+  # Destination clusters and namespaces
+  destinations:
+  - namespace: 'gridos'
+    server: https://kubernetes.default.svc
+    name: in-cluster
+  - namespace: 'gridos-dev'
+    server: https://kubernetes.default.svc
+  - namespace: 'gridos-test'
+    server: https://kubernetes.default.svc
+  - namespace: 'gridos-prod'
+    server: https://kubernetes.default.svc
+  - namespace: 'monitoring'
+    server: https://kubernetes.default.svc
+  
+  # Cluster resource whitelist - what K8s resources can be created
+  clusterResourceWhitelist:
+  - group: ''
+    kind: Namespace
+  - group: 'rbac.authorization.k8s.io'
+    kind: ClusterRole
+  - group: 'rbac.authorization.k8s.io'
+    kind: ClusterRoleBinding
+  - group: 'storage.k8s.io'
+    kind: StorageClass
+  - group: 'apiextensions.k8s.io'
+    kind: CustomResourceDefinition
+  
+  # Namespace resource whitelist
+  namespaceResourceWhitelist:
+  - group: ''
+    kind: Service
+  - group: ''
+    kind: ConfigMap
+  - group: ''
+    kind: Secret
+  - group: ''
+    kind: ServiceAccount
+  - group: ''
+    kind: PersistentVolumeClaim
+  - group: 'apps'
+    kind: Deployment
+  - group: 'apps'
+    kind: StatefulSet
+  - group: 'apps'
+    kind: ReplicaSet
+  - group: 'batch'
+    kind: Job
+  - group: 'batch'
+    kind: CronJob
+  - group: 'networking.k8s.io'
+    kind: Ingress
+  - group: 'networking.k8s.io'
+    kind: NetworkPolicy
+  - group: 'policy'
+    kind: PodDisruptionBudget
+  - group: 'argoproj.io'
+    kind: Rollout
+  - group: 'argoproj.io'
+    kind: AnalysisTemplate
+  - group: 'argoproj.io'
+    kind: AnalysisRun
+  - group: 'autoscaling'
+    kind: HorizontalPodAutoscaler
+  - group: 'monitoring.coreos.com'
+    kind: ServiceMonitor
+  - group: 'monitoring.coreos.com'
+    kind: PodMonitor
+  
+  # Deny list - resources that cannot be created
+  namespaceResourceBlacklist:
+  - group: ''
+    kind: ResourceQuota
+  - group: ''
+    kind: LimitRange
+  
+  # Roles - define permissions for this project
+  roles:
+  # Developer role - can view and sync apps
+  - name: developer
+    description: Developers can view and sync applications
+    policies:
+    - p, proj:gridos:developer, applications, get, gridos/*, allow
+    - p, proj:gridos:developer, applications, sync, gridos/*, allow
+    groups:
+    - gridos-developers
+  
+  # SRE role - full access
+  - name: sre
+    description: SRE team has full access
+    policies:
+    - p, proj:gridos:sre, applications, *, gridos/*, allow
+    - p, proj:gridos:sre, repositories, *, gridos/*, allow
+    groups:
+    - gridos-sre
+    - sre-team
+  
+  # Read-only role
+  - name: readonly
+    description: Read-only access for auditing
+    policies:
+    - p, proj:gridos:readonly, applications, get, gridos/*, allow
+    groups:
+    - auditors
+  
+  # Sync windows - when automated sync is allowed
+  syncWindows:
+  # Block auto-sync during peak hours in production
+  - kind: deny
+    schedule: '0 8-18 * * 1-5'  # Mon-Fri 8am-6pm
+    duration: 10h
+    applications:
+    - 'gridos-prod'
+    namespaces:
+    - gridos-prod
+    clusters:
+    - in-cluster
+    manualSync: true  # Manual sync still allowed
+  
+  # Allow auto-sync for dev/test anytime
+  - kind: allow
+    schedule: '* * * * *'
+    duration: 24h
+    applications:
+    - 'gridos-dev'
+    - 'gridos-test'
+    namespaces:
+    - gridos-dev
+    - gridos-test
+  
+  # Orphaned resources - what to do with resources not in Git
+  orphanedResources:
+    warn: true  # Warn about orphaned resources
+    # ignore: []  # Resources to ignore
+
+  # Signature verification (for signed commits)
+  signatureKeys:
+  - keyID: YOUR_GPG_KEY_ID  # Optional: require signed commits
+
+  # Cluster resource deny list - prevent dangerous operations
+  clusterResourceBlacklist:
+  - group: ''
+    kind: Node  # Can't modify nodes
+  - group: 'certificates.k8s.io'
+    kind: CertificateSigningRequest
