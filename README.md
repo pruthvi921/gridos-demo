@@ -67,27 +67,6 @@ designed a modular Terraform setup to ensure reusability, consistency, and envir
 - Loki for centralized logging
 - AlertManager with PagerDuty integration
 
-### Environment Management
-
-```bash
-# Deploy to specific environment
-cd terraform/environments/<dev|test|prod>
-terraform workspace select <env>
-terraform apply -var-file="terraform.tfvars"
-
-# State management with remote backend (Azure Storage/)
-
-
-**Trigger deployment:**
-```bash
-# Push terraform changes → auto-deploys dev
-git add terraform/
-git commit -m "Update infrastructure"
-git push origin main
-
-# Or use GitHub UI: Actions → Infrastructure Deployment → Run workflow
-```
-
 
 
 ## 🏗️ Architecture
@@ -225,6 +204,7 @@ Azure Kubernetes Service
 - **Critical**: Service unavailability, database connection failures
 - **Warning**: High error rates, resource saturation, slow queries
 - **Info**: Deployment events, configuration changes
+
 
 
 
