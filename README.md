@@ -5,7 +5,7 @@ A **production-ready GitOps pipeline** for the GridOS platform, demonstrating wi
 
 ### What Makes This Special
 
-✅ **Fully Automated** - Single command deploys entire infrastructure + GitOps stack  
+✅ **Fully Automated** - Single click deploys entire infrastructure + GitOps stack  
 ✅ **GitOps Methodology** - Git as single source of truth, pull-based deployment  
 ✅ **Progressive Delivery** - Canary deployments with automated Prometheus analysis  
 ✅ **Zero Manual Commands** - No kubectl/helm commands needed after initial setup  
@@ -225,6 +225,7 @@ Azure Kubernetes Service
 - **Critical**: Service unavailability, database connection failures
 - **Warning**: High error rates, resource saturation, slow queries
 - **Info**: Deployment events, configuration changes
+
 
 
 
