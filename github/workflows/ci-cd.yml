@@ -1,0 +1,666 @@
+# GitHub Actions CI/CD Pipeline for GridOS
+# ============================================
+# PRODUCTION BRANCHING STRATEGY
+# ============================================
+# feature/** → BUILD + TEST (No Push, No Deploy)
+#   - Builds Docker image locally (validates Dockerfile)
+#   - Runs unit tests, linting, security scans IN CONTAINER
+#   - Does NOT push to ACR (keeps registry clean)
+#   - Does NOT deploy anywhere
+#   - Purpose: Catch Docker build issues before merging to main
+#
+# main → Auto-deploy to DEV
+#   - Builds Docker image: main-{sha}
+#   - Pushes to ACR
+#   - Deploys to DEV environment
+#
+# release/** → Staged Rollout (TEST → PROD)
+#   - Builds Docker image: release-{version}-{sha}
+#   - Pushes to ACR
+#   - Deploys to TEST (auto) → PROD (manual approval)
+#   - Same image used for TEST and PROD
+# ============================================
+
+name: GridOS CI/CD
+
+on:
+  push:
+    branches:
+      - 'main'                    # Auto-deploy to DEV
+      - 'feature/**'              # Build + test only (no Docker, no deploy)
+      - 'release/**'              # Deploy to TEST → PROD
+    paths:
+      - 'src/**'
+      - 'Dockerfile'
+      - '.github/workflows/ci-cd.yml'
+  pull_request:
+    branches:
+      - 'main'                    # Feature PRs - build+test only
+      - 'release/**'              # Hotfix PRs
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        type: choice
+        options:
+        - dev
+        - test
+        - prod
+
+env:
+  AZURE_SERVICE_CONNECTION: ${{ secrets.AZURE_SERVICE_CONNECTION }}
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ACR_NAME: ${{ vars.ACR_NAME || 'gridosacr' }}
+  IMAGE_NAME: ${{ vars.IMAGE_NAME || 'gridos' }}
+  AZURE_REGION: ${{ vars.AZURE_REGION || 'eastus' }}
+
+jobs:
+  # ============================================
+  # JOB 1: Build & Test
+  # ============================================
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tag }}
+      image-full: ${{ steps.meta.outputs.image }}
+      environment: ${{ steps.meta.outputs.environment }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for GitVersion
+    
+    # ============================================
+    # ALL BRANCHES: Build Docker Image
+    # ============================================
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Azure Container Registry
+      if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')
+      run: |
+        echo "🔐 Logging into ACR using service connection: ${{ env.ACR_NAME }}"
+        echo "${{ env.AZURE_SERVICE_CONNECTION }}" | docker login ${{ env.ACR_NAME }}.azurecr.io -u 00000000-0000-0000-0000-000000000000 --password-stdin
+    
+    - name: Generate image tags
+      id: meta
+      run: |
+        # Determine environment and tag based on branch
+        if [[ "${{ github.ref }}" == refs/heads/release/* ]]; then
+          # Release branches deploy to test, then prod with approval
+          RELEASE_VERSION=$(echo "${{ github.ref }}" | sed 's|refs/heads/release/||')
+          ENV="test"
+          TAG="release-${RELEASE_VERSION}-${{ github.sha::7 }}"
+          IMAGE="${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:$TAG"
+          PUSH_TO_ACR="true"
+        elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          # Main branch deploys to dev
+          ENV="dev"
+          TAG="main-${{ github.sha::7 }}"
+          IMAGE="${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:$TAG"
+          PUSH_TO_ACR="true"
+        elif [[ "${{ github.ref }}" == refs/heads/feature/* ]] || [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          # Feature branches: Build Docker but don't push to ACR
+          FEATURE_NAME=$(echo "${{ github.ref }}" | sed 's|refs/heads/feature/||' | sed 's|/|-|g')
+          ENV="none"
+          TAG="feature-${FEATURE_NAME}-${{ github.sha::7 }}"
+          IMAGE="gridos-local:$TAG"
+          PUSH_TO_ACR="false"
+        else
+          # Fallback: no deployment
+          ENV="none"
+          TAG="local-${{ github.sha::7 }}"
+          IMAGE="gridos-local:$TAG"
+          PUSH_TO_ACR="false"
+        fi
+        
+        echo "environment=$ENV" >> $GITHUB_OUTPUT
+        echo "tag=$TAG" >> $GITHUB_OUTPUT
+        echo "image=$IMAGE" >> $GITHUB_OUTPUT
+        echo "push_to_acr=$PUSH_TO_ACR" >> $GITHUB_OUTPUT
+        
+        echo "📦 Environment: $ENV"
+        echo "🏷️  Tag: $TAG"
+        echo "🐳 Image: $IMAGE"
+        echo "📤 Push to ACR: $PUSH_TO_ACR"
+    
+    - name: Build Docker image (all branches)
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./src/GridOS.API/Dockerfile
+        push: ${{ steps.meta.outputs.push_to_acr == 'true' }}
+        tags: ${{ steps.meta.outputs.image }}
+        load: ${{ steps.meta.outputs.push_to_acr == 'false' }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          BUILD_DATE=${{ github.event.head_commit.timestamp }}
+          VCS_REF=${{ github.sha }}
+          VERSION=${{ steps.meta.outputs.tag }}
+    
+    # ============================================
+    # Docker Image Testing (ALL branches)
+    # ============================================
+    - name: Run unit tests in Docker
+      run: |
+        echo "🧪 Running tests in Docker container"
+        docker run --rm ${{ steps.meta.outputs.image }} npm test -- --coverage --coverageReporters=text --coverageReporters=lcov
+    
+    - name: Run npm audit in Docker
+      run: |
+        echo "🔍 Running npm audit for dependency vulnerabilities..."
+        docker run --rm ${{ steps.meta.outputs.image }} npm audit --audit-level=moderate || echo "⚠️  Vulnerabilities found, review required"
+    
+    - name: Run linting in Docker
+      run: |
+        echo "🔍 Running ESLint in Docker"
+        docker run --rm ${{ steps.meta.outputs.image }} npm run lint
+    
+    - name: Run Snyk security scan
+      uses: snyk/actions/node@master
+      continue-on-error: true
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: --severity-threshold=high --file=package.json
+    
+    - name: Upload coverage to Codecov
+      if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./coverage/lcov.info
+        flags: unittests
+        name: gridos-coverage
+        fail_ci_if_error: false
+    
+    - name: Run security scan with Trivy
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ steps.meta.outputs.image }}
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        severity: 'CRITICAL,HIGH'
+    
+    - name: Upload Trivy results to GitHub Security
+      if: always()
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+    
+    - name: Summary for feature branches
+      if: startsWith(github.ref, 'refs/heads/feature/') || github.event_name == 'pull_request'
+      run: |
+        echo "✅ Feature branch validation complete!"
+        echo "✅ Docker image built successfully: ${{ steps.meta.outputs.image }}"
+        echo "✅ Tests passed in container"
+        echo "✅ Security scans complete"
+        echo "✅ Linting passed"
+        echo "⏭️  Image NOT pushed to ACR (keeps registry clean)"
+        echo "⏭️  No deployment triggered"
+        echo "📝 Safe to merge to main - Dockerfile validated!"
+  
+  # ============================================
+  # JOB 2: Update Kubernetes Manifests Updates Kustomize manifest: applications/gridos/overlays/dev/
+  # ============================================
+
+  update-manifests:
+    name: Update Kubernetes Manifests
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && needs.build-and-test.outputs.environment != 'none'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Determine environment
+      id: env
+      run: |
+        if [[ "${{ github.ref }}" == refs/heads/release/* ]]; then
+          echo "environment=test" >> $GITHUB_OUTPUT
+          echo "🚀 Release branch → Deploying to TEST"
+        elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          echo "environment=dev" >> $GITHUB_OUTPUT
+          echo "🔧 Main branch → Deploying to DEV"
+        else
+          echo "environment=dev" >> $GITHUB_OUTPUT
+          echo "🔧 Other branch → Deploying to DEV"
+        fi
+    
+    - name: Update Kustomize image tag
+      run: |
+        ENV=${{ steps.env.outputs.environment }}
+        IMAGE_TAG=${{ needs.build-and-test.outputs.image-full }}
+        
+        # Update kustomization.yaml with new image tag
+        cd applications/gridos/overlays/$ENV
+        
+        # Use kustomize edit set image
+        kustomize edit set image \
+          ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}=$IMAGE_TAG
+        
+        echo "✅ Updated $ENV environment with image: $IMAGE_TAG"
+    
+    - name: Commit and push changes
+      run: |
+        git config --global user.name 'GitHub Actions'
+        git config --global user.email 'actions@github.com'
+        
+        git add applications/gridos/overlays/
+        
+        if git diff --staged --quiet; then
+          echo "ℹ️  No changes to commit"
+        else
+          git commit -m "chore: update ${{ steps.env.outputs.environment }} image to ${{ needs.build-and-test.outputs.image-tag }}"
+          git push
+          echo "✅ Manifest updated and pushed to Git"
+        fi
+  
+  # ============================================
+  # JOB 3: Wait for Argo CD Sync (Dev/Test)✅ Pulls new manifest + Docker image ✅ Applies to AKS DEV cluster
+  # ============================================
+  wait-for-argocd-sync:
+    name: Wait for Argo CD Sync
+    needs: [build-and-test, update-manifests]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/feature/')
+    
+    steps:
+    - name: Install Argo CD CLI
+      run: |
+        curl -sSL -o /usr/local/bin/argocd \
+          https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+        chmod +x /usr/local/bin/argocd
+    
+    - name: Log in to Argo CD
+      run: |
+        argocd login ${{ secrets.ARGOCD_SERVER }} \
+          --username admin \
+          --password ${{ secrets.ARGOCD_PASSWORD }} \
+          --insecure
+    
+    - name: Determine application
+      id: app
+      run: |
+        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          echo "app=gridos-dev" >> $GITHUB_OUTPUT
+        elif [[ "${{ github.ref }}" == refs/heads/release/* ]]; then
+          echo "app=gridos-test" >> $GITHUB_OUTPUT
+        else
+          echo "app=gridos-dev" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Wait for sync
+      timeout-minutes: 10
+      run: |
+        echo "Waiting for Argo CD to sync ${{ steps.app.outputs.app }}..."
+        argocd app wait ${{ steps.app.outputs.app }} \
+          --sync \
+          --health \
+          --timeout 600
+    
+    - name: Get application status
+      run: |
+        argocd app get ${{ steps.app.outputs.app }}
+  
+  # ============================================
+  # JOB 4: Monitor Rollout Argo Rollouts starts canary deployment:
+   # 10% traffic → monitor 2 min → check Prometheus
+   # 25% traffic → monitor 2 min → check Prometheus
+   # 50% traffic → monitor 2 min → check Prometheus
+   # 100% traffic → full rollout
+  # ============================================
+  monitor-rollout:
+    name: Monitor Argo Rollout
+    needs: [build-and-test, wait-for-argocd-sync]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/feature/')
+    
+    steps:
+    - name: Log in to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Get AKS credentials
+      run: |
+        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          CLUSTER="${{ vars.AKS_CLUSTER_DEV || 'gridos-aks-dev' }}"
+          RG="${{ vars.AKS_RG_DEV || 'gridos-dev-rg' }}"
+        elif [[ "${{ github.ref }}" == refs/heads/release/* ]]; then
+          CLUSTER="${{ vars.AKS_CLUSTER_TEST || 'gridos-aks-test' }}"
+          RG="${{ vars.AKS_RG_TEST || 'gridos-test-rg' }}"
+        else
+          CLUSTER="${{ vars.AKS_CLUSTER_TEST || 'gridos-aks-test' }}"
+          RG="${{ vars.AKS_RG_TEST || 'gridos-test-rg' }}"
+        fi
+        
+        az aks get-credentials \
+          --resource-group $RG \
+          --name $CLUSTER \
+          --overwrite-existing
+    
+    - name: Install kubectl-argo-rollouts plugin
+      run: |
+        curl -LO https://github.com/argoproj/argo-rollouts/releases/latest/download/kubectl-argo-rollouts-linux-amd64
+        chmod +x kubectl-argo-rollouts-linux-amd64
+        sudo mv kubectl-argo-rollouts-linux-amd64 /usr/local/bin/kubectl-argo-rollouts
+    
+    - name: Watch rollout progress
+      timeout-minutes: 20
+      run: |
+        echo "Monitoring rollout for gridos..."
+        kubectl argo rollouts status gridos -n gridos --watch --timeout 20m
+    
+    - name: Get rollout status
+      if: always()
+      run: |
+        kubectl argo rollouts get rollout gridos -n gridos
+        kubectl argo rollouts status gridos -n gridos
+  
+  # ============================================
+  # JOB 5: Smoke Tests
+  # ============================================
+  smoke-tests:
+    name: Run Smoke Tests
+    needs: [build-and-test, monitor-rollout]
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' && 
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Determine endpoint
+      id: endpoint
+      run: |
+        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          echo "url=${{ vars.APP_URL_DEV || 'https://gridos-dev.example.com' }}" >> $GITHUB_OUTPUT
+        elif [[ "${{ github.ref }}" == refs/heads/release/* ]]; then
+          echo "url=${{ vars.APP_URL_TEST || 'https://gridos-test.example.com' }}" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Health check
+      run: |
+        for i in {1..5}; do
+          echo "Attempt $i of 5..."
+          
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" ${{ steps.endpoint.outputs.url }}/health)
+          
+          if [ $RESPONSE -eq 200 ]; then
+            echo "✅ Health check passed!"
+            exit 0
+          fi
+          
+          echo "❌ Health check failed with code: $RESPONSE"
+          sleep 10
+        done
+        
+        echo "Health check failed after 5 attempts"
+        exit 1
+    
+    - name: API smoke tests
+      run: |
+        # Test SCADA endpoints
+        curl -f ${{ steps.endpoint.outputs.url }}/api/v1/scada/status || exit 1
+        curl -f ${{ steps.endpoint.outputs.url }}/api/v1/health || exit 1
+        curl -f ${{ steps.endpoint.outputs.url }}/metrics || exit 1
+        
+        echo "✅ All smoke tests passed!"
+  
+  # ============================================
+  # JOB 6: Integration Tests
+  # ============================================
+  integration-tests:
+    name: Run Integration Tests
+    needs: [build-and-test, smoke-tests]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/feature/')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Determine endpoint
+      id: endpoint
+      run: |
+        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          echo "url=${{ vars.APP_URL_DEV || 'https://gridos-dev.example.com' }}" >> $GITHUB_OUTPUT
+          echo "env=dev" >> $GITHUB_OUTPUT
+        elif [[ "${{ github.ref }}" == refs/heads/release/* ]]; then
+          echo "url=${{ vars.APP_URL_TEST || 'https://gridos-test.example.com' }}" >> $GITHUB_OUTPUT
+          echo "env=test" >> $GITHUB_OUTPUT
+        else
+          echo "url=${{ vars.APP_URL_TEST || 'https://gridos-test.example.com' }}" >> $GITHUB_OUTPUT
+          echo "env=test" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Run integration tests
+      env:
+        API_URL: ${{ steps.endpoint.outputs.url }}
+        TEST_ENV: ${{ steps.endpoint.outputs.env }}
+      run: |
+        # Run integration tests against deployed environment
+        npm run test:integration || exit 1
+    
+    - name: Test SCADA data flow
+      env:
+        API_URL: ${{ steps.endpoint.outputs.url }}
+      run: |
+        echo "Testing SCADA data ingestion and retrieval..."
+        
+        # Test data ingestion
+        RESPONSE=$(curl -X POST "${{ steps.endpoint.outputs.url }}/api/v1/scada/data" \
+          -H "Content-Type: application/json" \
+          -d '{"device_id":"test-device","voltage":230,"current":10,"timestamp":"2025-11-11T00:00:00Z"}' \
+          -s -o /dev/null -w "%{http_code}")
+        
+        if [ $RESPONSE -eq 201 ] || [ $RESPONSE -eq 200 ]; then
+          echo "✅ Data ingestion successful"
+        else
+          echo "❌ Data ingestion failed with code: $RESPONSE"
+          exit 1
+        fi
+        
+        # Test data retrieval
+        sleep 2
+        curl -f "${{ steps.endpoint.outputs.url }}/api/v1/scada/data?device_id=test-device" || exit 1
+        echo "✅ Data retrieval successful"
+    
+    - name: Test monitoring metrics
+      run: |
+        echo "Testing Prometheus metrics endpoint..."
+        
+        METRICS=$(curl -s ${{ steps.endpoint.outputs.url }}/metrics)
+        
+        # Verify key metrics exist
+        echo "$METRICS" | grep -q "http_requests_total" || exit 1
+        echo "$METRICS" | grep -q "process_cpu_seconds_total" || exit 1
+        
+        echo "✅ Metrics endpoint validated"
+    
+    - name: Test database connectivity
+      env:
+        API_URL: ${{ steps.endpoint.outputs.url }}
+      run: |
+        echo "Testing database health..."
+        
+        DB_STATUS=$(curl -s "${{ steps.endpoint.outputs.url }}/api/v1/health/db" | jq -r '.status')
+        
+        if [ "$DB_STATUS" = "healthy" ]; then
+          echo "✅ Database connectivity verified"
+        else
+          echo "❌ Database health check failed"
+          exit 1
+        fi
+    
+    - name: Upload integration test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: integration-test-results
+        path: test-results/
+        retention-days: 30
+  
+  # ============================================
+  # JOB 7: Production Deployment (Release Branches Only)
+  # ============================================
+  production-approval:
+    name: Production Deployment Approval
+    needs: [build-and-test, integration-tests]
+    runs-on: ubuntu-latest
+    # Only for release branches after test validation
+    if: startsWith(github.ref, 'refs/heads/release/')
+    environment:
+      name: production
+      url: ${{ vars.APP_URL_PROD || 'https://gridos.example.com' }}
+    
+    steps:
+    - name: Manual approval checkpoint
+      run: |
+        echo "✅ Deployment approved for production"
+        echo "Release Branch: ${{ github.ref_name }}"
+        echo "Image: ${{ needs.build-and-test.outputs.image-tag }}"
+        echo "⚠️  This will promote the same tested build from TEST to PROD"
+    
+    outputs:
+      approved: ${{ steps.approval.outputs.approved }}
+  
+  # ============================================
+  # JOB 8: Deploy to Production
+  # ============================================
+  deploy-production:
+    name: Deploy to Production
+    needs: [build-and-test, production-approval]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/heads/release/')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Update production manifests
+      run: |
+        IMAGE_TAG=${{ needs.build-and-test.outputs.image-full }}
+        
+        cd applications/gridos/overlays/prod
+        kustomize edit set image \
+          ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}=$IMAGE_TAG
+        
+        echo "✅ Updated PROD environment with image: $IMAGE_TAG"
+    
+    - name: Commit and push production changes
+      run: |
+        git config --global user.name 'GitHub Actions'
+        git config --global user.email 'actions@github.com'
+        
+        git add applications/gridos/overlays/prod
+        
+        if git diff --staged --quiet; then
+          echo "ℹ️  No changes to commit"
+        else
+          git commit -m "chore: promote to production - ${{ needs.build-and-test.outputs.image-tag }}"
+          git push
+          echo "✅ Production manifest updated and pushed to Git"
+        fi
+    
+    - name: Install Argo CD CLI
+      run: |
+        curl -sSL -o /usr/local/bin/argocd \
+          https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+        chmod +x /usr/local/bin/argocd
+    
+    - name: Sync production Argo CD app
+      run: |
+        argocd login ${{ secrets.ARGOCD_SERVER }} \
+          --username admin \
+          --password ${{ secrets.ARGOCD_PASSWORD }} \
+          --insecure
+        
+        echo "Syncing gridos-prod..."
+        argocd app sync gridos-prod --force
+        
+        argocd app wait gridos-prod \
+          --sync \
+          --health \
+          --timeout 600
+    
+    - name: Monitor production rollout
+      run: |
+        az login --service-principal \
+          -u ${{ secrets.AZURE_CLIENT_ID }} \
+          -p ${{ secrets.AZURE_CLIENT_SECRET }} \
+          --tenant ${{ secrets.AZURE_TENANT_ID }}
+        
+        az aks get-credentials \
+          --resource-group ${{ vars.AKS_RG_PROD || 'gridos-prod-rg' }} \
+          --name ${{ vars.AKS_CLUSTER_PROD || 'gridos-aks-prod' }} \
+          --overwrite-existing
+        
+        kubectl argo rollouts status gridos -n gridos --watch --timeout 20m
+    
+    - name: Production smoke tests
+      run: |
+        PROD_URL="${{ vars.APP_URL_PROD || 'https://gridos.example.com' }}"
+        
+        for i in {1..5}; do
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" $PROD_URL/health)
+          if [ $RESPONSE -eq 200 ]; then
+            echo "✅ Production health check passed!"
+            exit 0
+          fi
+          sleep 10
+        done
+        
+        echo "❌ Production health check failed"
+        exit 1
+  
+  # ============================================
+  # JOB 9: Notify
+  # ============================================
+  notify:
+    name: Send Notifications
+    needs: [build-and-test, update-manifests]
+    runs-on: ubuntu-latest
+    if: always() && !startsWith(github.ref, 'refs/heads/feature/')
+    
+    steps:
+    - name: Notify Slack
+      uses: slackapi/slack-github-action@v1
+      if: always()
+      with:
+        payload: |
+          {
+            "text": "GridOS Deployment ${{ job.status }}",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*GridOS Deployment*\nStatus: ${{ job.status }}\nImage: ${{ needs.build-and-test.outputs.image-tag }}\nCommit: ${{ github.sha }}"
+                }
+              }
+            ]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

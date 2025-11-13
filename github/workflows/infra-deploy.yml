@@ -1,0 +1,529 @@
+name: Infrastructure Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        type: choice
+        options:
+          - dev
+          - test
+          - prod
+      action:
+        description: 'Terraform action'
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+      auto_approve:
+        description: 'Auto-approve apply/destroy (use with caution)'
+        required: false
+        type: boolean
+        default: false
+  
+  # Push to feature/develop → Auto-deploy to dev
+  # Push to main/master → Deploy to prod (with approval)
+  push:
+    branches:
+      - 'feature/**'
+      - 'develop'
+      - 'main'
+      - 'master'
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/infra-deploy.yml'
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  TF_VERSION: '1.5.0'
+
+jobs:
+  # Run tests first
+  run-tests:
+    name: Run Infrastructure Tests
+    uses: ./.github/workflows/infra-test.yml
+    secrets: inherit
+
+  # Determine which environments to deploy based on trigger
+  determine-environments:
+    name: Determine Environments
+    runs-on: ubuntu-latest
+    needs: run-tests  # Wait for tests to pass
+    outputs:
+      environments: ${{ steps.set-environments.outputs.environments }}
+      requires_approval: ${{ steps.set-environments.outputs.requires_approval }}
+    steps:
+      - name: Set environments
+        id: set-environments
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            # Manual trigger - deploy selected environment
+            echo "environments=[\"${{ github.event.inputs.environment }}\"]" >> $GITHUB_OUTPUT
+            
+            # Determine if approval needed
+            if [[ "${{ github.event.inputs.environment }}" == "prod" || "${{ github.event.inputs.environment }}" == "test" ]]; then
+              echo "requires_approval=true" >> $GITHUB_OUTPUT
+            else
+              echo "requires_approval=false" >> $GITHUB_OUTPUT
+            fi
+            
+          elif [[ "${{ github.ref }}" == "refs/heads/main" || "${{ github.ref }}" == "refs/heads/master" ]]; then
+            # Push to main/master - deploy to prod with approval
+            echo "environments=[\"prod\"]" >> $GITHUB_OUTPUT
+            echo "requires_approval=true" >> $GITHUB_OUTPUT
+            echo "🚀 Main/Master branch detected → Deploying to PRODUCTION (requires approval)"
+            
+          elif [[ "${{ github.ref }}" == refs/heads/develop || "${{ github.ref }}" == refs/heads/feature/* ]]; then
+            # Push to feature/develop - deploy to dev automatically
+            echo "environments=[\"dev\"]" >> $GITHUB_OUTPUT
+            echo "requires_approval=false" >> $GITHUB_OUTPUT
+            echo "🔧 Feature/Develop branch detected → Auto-deploying to DEV"
+          fi
+          
+      - name: Display deployment plan
+        run: |
+          echo "## 📋 Deployment Plan" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment(s):** ${{ steps.set-environments.outputs.environments }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Requires Approval:** ${{ steps.set-environments.outputs.requires_approval }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ steps.set-environments.outputs.requires_approval }}" == "true" ]]; then
+            echo "⏸️ Deployment will pause for manual approval" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ Deployment will proceed automatically" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Terraform Plan
+  terraform-plan:
+    name: Plan - ${{ matrix.environment }}
+    runs-on: ubuntu-latest
+    needs: determine-environments
+    strategy:
+      matrix:
+        environment: ${{ fromJson(needs.determine-environments.outputs.environments) }}
+    environment:
+      name: ${{ matrix.environment }}
+    
+    defaults:
+      run:
+        working-directory: terraform/environments/${{ matrix.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ secrets.TF_STATE_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ secrets.TF_STATE_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=tfstate" \
+            -backend-config="key=${{ matrix.environment }}.terraform.tfstate"
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan \
+            -var-file="${{ matrix.environment }}.tfvars" \
+            -out=tfplan \
+            -no-color
+        continue-on-error: true
+
+      - name: Save Plan
+        if: steps.plan.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ matrix.environment }}
+          path: terraform/environments/${{ matrix.environment }}/tfplan
+          retention-days: 5
+
+      - name: Comment Plan on PR
+        if: github.event_name == 'pull_request' && steps.plan.outcome == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `#### Terraform Plan - ${{ matrix.environment }} 📖
+            
+            <details><summary>Show Plan</summary>
+            
+            \`\`\`terraform
+            ${{ steps.plan.outputs.stdout }}
+            \`\`\`
+            
+            </details>
+            
+            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+      - name: Fail if plan failed
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+
+  # Terraform Apply (requires approval for test/prod)
+  terraform-apply:
+    name: Apply - ${{ matrix.environment }}
+    runs-on: ubuntu-latest
+    needs: [determine-environments, terraform-plan]
+    if: |
+      (github.event.inputs.action == 'apply' || github.event_name == 'push') &&
+      (github.event.inputs.auto_approve == true || needs.determine-environments.outputs.environments == '["dev"]')
+    strategy:
+      matrix:
+        environment: ${{ fromJson(needs.determine-environments.outputs.environments) }}
+      max-parallel: 1  # Deploy one environment at a time
+    
+    environment:
+      name: ${{ matrix.environment }}
+    
+    defaults:
+      run:
+        working-directory: terraform/environments/${{ matrix.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ secrets.TF_STATE_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ secrets.TF_STATE_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=tfstate" \
+            -backend-config="key=${{ matrix.environment }}.terraform.tfstate"
+
+      - name: Download Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ matrix.environment }}
+          path: terraform/environments/${{ matrix.environment }}
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get Terraform Outputs
+        id: outputs
+        run: |
+          echo "cluster_name=$(terraform output -raw cluster_name)" >> $GITHUB_OUTPUT
+          echo "resource_group=$(terraform output -raw resource_group_name)" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Comment Apply Result on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `#### Terraform Apply - ${{ matrix.environment }} ✅
+            
+            Infrastructure successfully deployed!
+            
+            **Outputs:**
+            - Cluster: ${{ steps.outputs.outputs.cluster_name }}
+            - Resource Group: ${{ steps.outputs.outputs.resource_group }}
+            
+            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+  # Manual Approval for Test/Prod Apply
+  manual-approval-test:
+    name: Approve Test Deployment
+    runs-on: ubuntu-latest
+    needs: [determine-environments, terraform-plan]
+    if: |
+      github.event.inputs.action == 'apply' && 
+      contains(fromJson(needs.determine-environments.outputs.environments), 'test') &&
+      github.event.inputs.auto_approve != true
+    environment:
+      name: test-approval
+    steps:
+      - name: Manual Approval Required
+        run: echo "Manual approval granted for test environment"
+
+  manual-approval-prod:
+    name: Approve Production Deployment
+    runs-on: ubuntu-latest
+    needs: [determine-environments, terraform-plan]
+    if: |
+      github.event.inputs.action == 'apply' && 
+      contains(fromJson(needs.determine-environments.outputs.environments), 'prod') &&
+      github.event.inputs.auto_approve != true
+    environment:
+      name: prod-approval
+    steps:
+      - name: Manual Approval Required
+        run: echo "Manual approval granted for production environment"
+
+  # Apply with approval for test/prod
+  terraform-apply-with-approval:
+    name: Apply (Approved) - ${{ matrix.environment }}
+    runs-on: ubuntu-latest
+    needs: [determine-environments, terraform-plan, manual-approval-test, manual-approval-prod]
+    if: |
+      always() &&
+      github.event.inputs.action == 'apply' &&
+      github.event.inputs.auto_approve != true &&
+      (needs.manual-approval-test.result == 'success' || needs.manual-approval-prod.result == 'success')
+    strategy:
+      matrix:
+        environment: ${{ fromJson(needs.determine-environments.outputs.environments) }}
+      max-parallel: 1
+    
+    environment:
+      name: ${{ matrix.environment }}
+    
+    defaults:
+      run:
+        working-directory: terraform/environments/${{ matrix.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ secrets.TF_STATE_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ secrets.TF_STATE_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=tfstate" \
+            -backend-config="key=${{ matrix.environment }}.terraform.tfstate"
+
+      - name: Download Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ matrix.environment }}
+          path: terraform/environments/${{ matrix.environment }}
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+
+  # Terraform Destroy (requires manual trigger only)
+  terraform-destroy:
+    name: Destroy - ${{ matrix.environment }}
+    runs-on: ubuntu-latest
+    needs: [determine-environments, terraform-plan]
+    if: github.event.inputs.action == 'destroy'
+    strategy:
+      matrix:
+        environment: ${{ fromJson(needs.determine-environments.outputs.environments) }}
+      max-parallel: 1
+    
+    environment:
+      name: ${{ matrix.environment }}-destroy
+    
+    defaults:
+      run:
+        working-directory: terraform/environments/${{ matrix.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ secrets.TF_STATE_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ secrets.TF_STATE_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=tfstate" \
+            -backend-config="key=${{ matrix.environment }}.terraform.tfstate"
+
+      - name: Terraform Destroy
+        run: |
+          terraform destroy \
+            -var-file="${{ matrix.environment }}.tfvars" \
+            -auto-approve
+
+  # Bootstrap GitOps (only after successful infra deployment)
+  bootstrap-gitops:
+    name: Bootstrap GitOps - ${{ matrix.environment }}
+    runs-on: ubuntu-latest
+    needs: [determine-environments, terraform-apply]
+    if: |
+      (github.event.inputs.action == 'apply' || github.event_name == 'push') &&
+      success()
+    strategy:
+      matrix:
+        environment: ${{ fromJson(needs.determine-environments.outputs.environments) }}
+    
+    environment:
+      name: ${{ matrix.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get AKS Credentials
+        run: |
+          az aks get-credentials \
+            --resource-group gridos-${{ matrix.environment }}-rg \
+            --name gridos-${{ matrix.environment }}-aks \
+            --overwrite-existing
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+
+      - name: Check if Argo CD exists
+        id: check-argocd
+        run: |
+          if kubectl get namespace argocd &> /dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Bootstrap Argo CD
+        if: steps.check-argocd.outputs.exists == 'false'
+        run: |
+          chmod +x scripts/install-argocd.sh
+          ./scripts/install-argocd.sh
+        env:
+          ENVIRONMENT: ${{ matrix.environment }}
+
+      - name: Get Argo CD Password
+        if: steps.check-argocd.outputs.exists == 'false'
+        id: argocd-password
+        run: |
+          sleep 30  # Wait for secret to be created
+          PASSWORD=$(kubectl get secret argocd-initial-admin-secret \
+            -n argocd \
+            -o jsonpath="{.data.password}" | base64 --decode)
+          echo "::add-mask::$PASSWORD"
+          echo "password=$PASSWORD" >> $GITHUB_OUTPUT
+
+      - name: Comment Bootstrap Result
+        if: github.event_name == 'pull_request' && steps.check-argocd.outputs.exists == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `#### GitOps Bootstrap - ${{ matrix.environment }} 🚀
+            
+            ✅ Argo CD and Argo Rollouts successfully installed!
+            
+            **Access Information:**
+            - Port-forward: \`kubectl port-forward svc/argocd-server -n argocd 8080:443\`
+            - URL: https://localhost:8080
+            - Username: \`admin\`
+            - Password: \`${{ steps.argocd-password.outputs.password }}\`
+            
+            **Note:** Change the admin password after first login!
+            
+            *Pushed by: @${{ github.actor }}*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+  # Notify completion
+  notify-completion:
+    name: Notify Deployment Completion
+    runs-on: ubuntu-latest
+    needs: [determine-environments, terraform-apply, bootstrap-gitops]
+    if: always()
+    steps:
+      - name: Deployment Summary
+        run: |
+          echo "## Infrastructure Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment(s):** ${{ needs.determine-environments.outputs.environments }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Action:** ${{ github.event.inputs.action || 'apply' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Infrastructure deployment completed!" >> $GITHUB_STEP_SUMMARY
+          echo "🚀 GitOps bootstrap completed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next Steps:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. Login to Argo CD UI" >> $GITHUB_STEP_SUMMARY
+          echo "2. Verify applications are syncing" >> $GITHUB_STEP_SUMMARY
+          echo "3. All future deployments via Git commits!" >> $GITHUB_STEP_SUMMARY

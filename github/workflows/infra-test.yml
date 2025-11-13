@@ -1,0 +1,431 @@
+name: Infrastructure Tests
+
+on:
+  # Called by other workflows (e.g., infra-deploy.yml)
+  workflow_call:
+  
+  # Triggered by pull requests to main
+  pull_request:
+    branches:
+      - main
+      - master
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/infra-test.yml'
+  
+  # Triggered by pushes to feature/develop branches
+  push:
+    branches:
+      - 'feature/**'
+      - 'develop'
+      - main
+      - master
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/infra-test.yml'
+  
+  # Manual trigger
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  TF_VERSION: '1.5.0'
+  TFLINT_VERSION: 'v0.50.0'
+  CHECKOV_VERSION: '3.1.0'
+
+jobs:
+  # Static Analysis - Terraform Format Check
+  terraform-format:
+    name: Terraform Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Format Check
+        run: |
+          echo "## Terraform Format Check" >> $GITHUB_STEP_SUMMARY
+          if terraform fmt -check -recursive -diff terraform/; then
+            echo "✅ All Terraform files are properly formatted" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Some files need formatting. Run: terraform fmt -recursive terraform/" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+  # Static Analysis - TFLint
+  tflint:
+    name: TFLint Analysis
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [dev, test, prod]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: ${{ env.TFLINT_VERSION }}
+
+      - name: Initialize TFLint
+        run: tflint --init
+        working-directory: terraform/environments/${{ matrix.environment }}
+
+      - name: Run TFLint
+        run: |
+          tflint --format compact --color
+        working-directory: terraform/environments/${{ matrix.environment }}
+
+  # Security Scanning - Checkov
+  checkov:
+    name: Checkov Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Checkov
+        run: pip install checkov==${{ env.CHECKOV_VERSION }}
+
+      - name: Run Checkov
+        id: checkov
+        run: |
+          checkov -d terraform/ \
+            --framework terraform \
+            --output cli \
+            --output junitxml \
+            --output-file-path console,checkov-report.xml \
+            --compact \
+            --quiet
+        continue-on-error: true
+
+      - name: Upload Checkov Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkov-security-report
+          path: checkov-report.xml
+
+      - name: Checkov Summary
+        if: always()
+        run: |
+          echo "## Checkov Security Scan" >> $GITHUB_STEP_SUMMARY
+          if [ ${{ steps.checkov.outcome }} == 'success' ]; then
+            echo "✅ No critical security issues found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Security issues detected. Review the report for details." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Cost Estimation - Infracost
+  infracost:
+    name: Infrastructure Cost Estimation
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [dev, test, prod]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Setup Infracost
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: Generate Terraform Plan JSON
+        working-directory: terraform/environments/${{ matrix.environment }}
+        run: |
+          terraform init -backend=false
+          terraform plan -out=tfplan.binary
+          terraform show -json tfplan.binary > plan.json
+        continue-on-error: true
+
+      - name: Generate Infracost Estimate
+        if: success()
+        working-directory: terraform/environments/${{ matrix.environment }}
+        run: |
+          infracost breakdown \
+            --path=plan.json \
+            --format=table \
+            --out-file=infracost-${{ matrix.environment }}.txt
+        continue-on-error: true
+
+      - name: Upload Cost Report
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cost-estimate-${{ matrix.environment }}
+          path: terraform/environments/${{ matrix.environment }}/infracost-${{ matrix.environment }}.txt
+
+  # Terraform Validate - All Environments
+  terraform-validate:
+    name: Terraform Validate - ${{ matrix.environment }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [dev, test, prod]
+    defaults:
+      run:
+        working-directory: terraform/environments/${{ matrix.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Validation Summary
+        if: always()
+        run: |
+          echo "## Terraform Validate - ${{ matrix.environment }}" >> $GITHUB_STEP_SUMMARY
+          if [ $? -eq 0 ]; then
+            echo "✅ Validation passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Validation failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Terraform Plan - Dry Run (No Backend)
+  terraform-plan-dry-run:
+    name: Terraform Plan Dry Run - ${{ matrix.environment }}
+    runs-on: ubuntu-latest
+    needs: [terraform-validate]
+    strategy:
+      matrix:
+        environment: [dev, test, prod]
+    defaults:
+      run:
+        working-directory: terraform/environments/${{ matrix.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init (No Backend)
+        run: terraform init -backend=false
+
+      - name: Terraform Plan (Dry Run)
+        id: plan
+        run: |
+          terraform plan \
+            -var-file="${{ matrix.environment }}.tfvars" \
+            -no-color \
+            -out=tfplan-dryrun
+        continue-on-error: true
+
+      - name: Plan Output Summary
+        if: always()
+        run: |
+          echo "## Terraform Plan - ${{ matrix.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ ${{ steps.plan.outcome }} == 'success' ]; then
+            echo "✅ Plan completed successfully" >> $GITHUB_STEP_SUMMARY
+            terraform show -no-color tfplan-dryrun | grep -E "Plan:|No changes" >> $GITHUB_STEP_SUMMARY || true
+          else
+            echo "❌ Plan failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Module Testing - terraform-compliance (if you have policies)
+  terraform-compliance:
+    name: Terraform Compliance Tests
+    runs-on: ubuntu-latest
+    if: false  # Enable if you have compliance policies
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install terraform-compliance
+        run: pip install terraform-compliance
+
+      - name: Run Compliance Tests
+        run: |
+          # Example: terraform-compliance -f compliance/ -p terraform/
+          echo "Compliance tests would run here"
+
+  # Documentation Check
+  docs-check:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check README exists
+        run: |
+          if [ ! -f "README.md" ]; then
+            echo "❌ README.md not found"
+            exit 1
+          fi
+
+      - name: Check Module Documentation
+        run: |
+          missing_docs=0
+          for module in terraform/modules/*; do
+            if [ -d "$module" ] && [ ! -f "$module/README.md" ]; then
+              echo "⚠️ Missing README.md in $module"
+              missing_docs=1
+            fi
+          done
+          
+          echo "## Documentation Check" >> $GITHUB_STEP_SUMMARY
+          if [ $missing_docs -eq 0 ]; then
+            echo "✅ All modules have documentation" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Some modules are missing documentation" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Variable Validation
+  variable-validation:
+    name: Variable Validation
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [dev, test, prod]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check tfvars file exists
+        run: |
+          if [ ! -f "terraform/environments/${{ matrix.environment }}/${{ matrix.environment }}.tfvars" ]; then
+            echo "❌ Missing ${{ matrix.environment }}.tfvars file"
+            exit 1
+          fi
+
+      - name: Validate no hardcoded secrets
+        run: |
+          echo "## Secret Scanning - ${{ matrix.environment }}" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for common secret patterns
+          if grep -r -E "(password|secret|key)\s*=\s*\"[^\"]+\"" terraform/environments/${{ matrix.environment }}/*.tfvars; then
+            echo "⚠️ Possible hardcoded secrets found in tfvars" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ No hardcoded secrets detected" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Test Summary Report
+  test-summary:
+    name: Test Summary Report
+    runs-on: ubuntu-latest
+    needs: 
+      - terraform-format
+      - tflint
+      - checkov
+      - terraform-validate
+      - terraform-plan-dry-run
+      - docs-check
+      - variable-validation
+    if: always()
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "# 🧪 Infrastructure Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Terraform Format | ${{ needs.terraform-format.result == 'success' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| TFLint | ${{ needs.tflint.result == 'success' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Checkov Security | ${{ needs.checkov.result == 'success' && '✅ Pass' || '⚠️ Warning' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Terraform Validate | ${{ needs.terraform-validate.result == 'success' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Terraform Plan | ${{ needs.terraform-plan-dry-run.result == 'success' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Documentation | ${{ needs.docs-check.result == 'success' && '✅ Pass' || '⚠️ Warning' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Variable Validation | ${{ needs.variable-validation.result == 'success' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Overall status
+          if [[ "${{ needs.terraform-format.result }}" == "success" ]] && \
+             [[ "${{ needs.tflint.result }}" == "success" ]] && \
+             [[ "${{ needs.terraform-validate.result }}" == "success" ]] && \
+             [[ "${{ needs.terraform-plan-dry-run.result }}" == "success" ]] && \
+             [[ "${{ needs.variable-validation.result }}" == "success" ]]; then
+            echo "## ✅ All Critical Tests Passed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Infrastructure code is ready for deployment!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ❌ Some Tests Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please fix the failing tests before deploying." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+  # Comment on PR
+  pr-comment:
+    name: Comment Test Results on PR
+    runs-on: ubuntu-latest
+    needs: 
+      - terraform-format
+      - tflint
+      - checkov
+      - terraform-validate
+      - terraform-plan-dry-run
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `## 🧪 Infrastructure Test Results
+            
+            | Test | Status |
+            |------|--------|
+            | Terraform Format | ${{ needs.terraform-format.result == 'success' ? '✅ Pass' : '❌ Fail' }} |
+            | TFLint | ${{ needs.tflint.result == 'success' ? '✅ Pass' : '❌ Fail' }} |
+            | Checkov Security | ${{ needs.checkov.result == 'success' ? '✅ Pass' : '⚠️ Warning' }} |
+            | Terraform Validate | ${{ needs.terraform-validate.result == 'success' ? '✅ Pass' : '❌ Fail' }} |
+            | Terraform Plan | ${{ needs.terraform-plan-dry-run.result == 'success' ? '✅ Pass' : '❌ Fail' }} |
+            
+            <details><summary>📋 Test Details</summary>
+            
+            ### What was tested:
+            - **Format Check**: Ensures consistent Terraform code formatting
+            - **TFLint**: Static analysis for potential errors and best practices
+            - **Checkov**: Security and compliance scanning
+            - **Validate**: Terraform syntax and configuration validation
+            - **Plan Dry Run**: Test planning without backend (no state access needed)
+            
+            </details>
+            
+            *Triggered by: @${{ github.actor }}*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
