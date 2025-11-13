@@ -1,0 +1,991 @@
+# Enhanced Azure DevOps Pipeline - Production Grade
+# Includes: Canary deployment, quality gates, automated rollback, comprehensive testing
+
+trigger:
+  branches:
+    include:
+    - main
+    - develop
+  paths:
+    include:
+    - src/*
+    - terraform/*
+    - kubernetes/*
+
+pr:
+  branches:
+    include:
+    - main
+    - develop
+
+variables:
+  azureSubscription: 'sc-T_MS-UnifiedCommerce'
+  acrServiceConnection: 'sc-msunifiedcommerce-Registry'
+  subscriptionId: '1e371d35-9938-4d5c-94ef-a1b1f9d32e31'
+  
+  ${{ if eq(variables['Build.SourceBranchName'], 'main') }}:
+    environment: 'prod'
+    resourceGroup: 'prod-gridos-rg'
+    aksCluster: 'prod-gridos-aks'
+    acrName: 'prodgridosacr'
+    requireApproval: true
+    canaryEnabled: true
+  ${{ else }}:
+    environment: 'dev'
+    resourceGroup: 'dev-gridos-rg'
+    aksCluster: 'dev-gridos-aks'
+    acrName: 'devgridosacr'
+    requireApproval: false
+    canaryEnabled: false
+  
+  imageRepository: 'gridos-api'
+  dockerfilePath: 'src/GridOS.API/Dockerfile'
+  tag: '$(Build.BuildId)'
+  
+  # Quality Gate Thresholds
+  minCodeCoverage: 80
+  maxCriticalVulnerabilities: 0
+  maxHighVulnerabilities: 5
+
+stages:
+###########################################
+# STAGE 1: Build, Test & Security Scan
+###########################################
+- stage: BuildAndTest
+  displayName: 'Build, Test & Security Scan'
+  jobs:
+  - job: Build
+    displayName: 'Build Application'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - checkout: self
+      fetchDepth: 0
+
+    - task: UseDotNet@2
+      displayName: 'Install .NET 8 SDK'
+      inputs:
+        packageType: 'sdk'
+        version: '8.0.x'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Restore NuGet Packages'
+      inputs:
+        command: 'restore'
+        projects: 'src/GridOS.API/*.csproj'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Build Application'
+      inputs:
+        command: 'build'
+        projects: 'src/GridOS.API/*.csproj'
+        arguments: '--configuration Release --no-restore'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Run Unit Tests with Coverage'
+      inputs:
+        command: 'test'
+        projects: 'tests/**/*.Tests.csproj'
+        arguments: >
+          --configuration Release
+          --no-build
+          --logger trx
+          --collect:"XPlat Code Coverage"
+          --results-directory $(Agent.TempDirectory)/TestResults
+          /p:CollectCoverage=true
+          /p:CoverletOutputFormat=cobertura
+          /p:CoverletOutput=$(Agent.TempDirectory)/TestResults/
+
+    - task: PublishTestResults@2
+      displayName: 'Publish Test Results'
+      condition: always()
+      inputs:
+        testResultsFormat: 'VSTest'
+        testResultsFiles: '$(Agent.TempDirectory)/TestResults/**/*.trx'
+        failTaskOnFailedTests: true
+
+    - task: PublishCodeCoverageResults@2
+      displayName: 'Publish Code Coverage'
+      inputs:
+        codeCoverageTool: 'Cobertura'
+        summaryFileLocation: '$(Agent.TempDirectory)/TestResults/**/coverage.cobertura.xml'
+        failIfCoverageEmpty: true
+
+    - script: |
+        # Check code coverage threshold
+        COVERAGE=$(grep -oP 'line-rate="\K[^"]+' $(Agent.TempDirectory)/TestResults/**/coverage.cobertura.xml | head -1 | awk '{print $1*100}')
+        echo "Code Coverage: $COVERAGE%"
+        if (( $(echo "$COVERAGE < $(minCodeCoverage)" | bc -l) )); then
+          echo "##vso[task.logissue type=error]Code coverage $COVERAGE% is below threshold $(minCodeCoverage)%"
+          exit 1
+        fi
+      displayName: 'Enforce Code Coverage Threshold'
+
+  - job: SecurityScan
+    displayName: 'Security Scanning'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - checkout: self
+
+    - script: |
+        # Install Trivy
+        wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+        echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+        sudo apt-get update && sudo apt-get install -y trivy
+        
+        # Scan filesystem
+        trivy fs --severity HIGH,CRITICAL --exit-code 1 --format json --output trivy-fs-results.json .
+      displayName: 'Trivy Filesystem Scan'
+      continueOnError: false
+
+    - task: CmdLine@2
+      displayName: 'GitLeaks Secret Scanning'
+      inputs:
+        script: |
+          docker run --rm -v $(Build.SourcesDirectory):/repo zricethezav/gitleaks:latest detect \
+            --source /repo \
+            --report-path /repo/gitleaks-report.json \
+            --exit-code 1
+
+    - script: |
+        # Install Snyk
+        npm install -g snyk
+        snyk auth $(SNYK_TOKEN)
+        snyk test --severity-threshold=high --file=src/GridOS.API/GridOS.API.csproj
+      displayName: 'Snyk Dependency Scan'
+      env:
+        SNYK_TOKEN: $(SNYK_TOKEN)
+      continueOnError: false
+
+    - task: SonarCloudPrepare@1
+      displayName: 'Prepare SonarCloud Analysis'
+      inputs:
+        SonarCloud: 'SonarCloud'
+        organization: 'your-org'
+        scannerMode: 'MSBuild'
+        projectKey: 'gridos-platform'
+        projectName: 'GridOS Platform'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Build for SonarCloud'
+      inputs:
+        command: 'build'
+        projects: 'src/**/*.csproj'
+
+    - task: SonarCloudAnalyze@1
+      displayName: 'Run SonarCloud Analysis'
+
+    - task: SonarCloudPublish@1
+      displayName: 'Publish SonarCloud Results'
+      inputs:
+        pollingTimeoutSec: '300'
+
+    - script: |
+        # Check SonarCloud Quality Gate
+        QUALITY_GATE=$(curl -s -u $(SONAR_TOKEN): \
+          "https://sonarcloud.io/api/qualitygates/project_status?projectKey=gridos-platform" \
+          | jq -r '.projectStatus.status')
+        
+        if [ "$QUALITY_GATE" != "OK" ]; then
+          echo "##vso[task.logissue type=error]SonarCloud Quality Gate failed: $QUALITY_GATE"
+          exit 1
+        fi
+      displayName: 'Enforce SonarCloud Quality Gate'
+      env:
+        SONAR_TOKEN: $(SONAR_TOKEN)
+
+  - job: BuildImage
+    displayName: 'Build Docker Image'
+    dependsOn: [Build, SecurityScan]
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - checkout: self
+
+    - task: Docker@2
+      displayName: 'Build Docker Image'
+      inputs:
+        containerRegistry: '$(acrServiceConnection)'
+        repository: '$(imageRepository)'
+        command: 'build'
+        Dockerfile: '$(dockerfilePath)'
+        tags: |
+          $(tag)
+          $(Build.SourceBranchName)-$(Build.BuildId)
+          $(Build.SourceBranchName)-latest
+        arguments: '--build-arg BUILD_NUMBER=$(Build.BuildId)'
+
+    - script: |
+        # Scan Docker image with Trivy
+        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+          aquasec/trivy:latest image \
+          --severity HIGH,CRITICAL \
+          --exit-code 1 \
+          --format json \
+          --output trivy-image-results.json \
+          $(acrName).azurecr.io/$(imageRepository):$(tag)
+      displayName: 'Scan Docker Image with Trivy'
+
+    - task: Docker@2
+      displayName: 'Push Image to ACR'
+      inputs:
+        containerRegistry: '$(acrServiceConnection)'
+        repository: '$(imageRepository)'
+        command: 'push'
+        tags: |
+          $(tag)
+          $(Build.SourceBranchName)-$(Build.BuildId)
+          $(Build.SourceBranchName)-latest
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Helm Charts'
+      inputs:
+        targetPath: 'kubernetes/helm-charts/gridos'
+        artifact: 'helm-charts'
+
+###########################################
+# STAGE 2: Integration & Performance Tests
+###########################################
+- stage: IntegrationTests
+  displayName: 'Integration & Performance Tests'
+  dependsOn: BuildAndTest
+  condition: succeeded()
+  jobs:
+  - job: IntegrationTest
+    displayName: 'Run Integration Tests'
+    pool:
+      vmImage: 'ubuntu-latest'
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: gridos_test
+        ports:
+          - 5432:5432
+    
+    steps:
+    - checkout: self
+
+    - task: UseDotNet@2
+      inputs:
+        packageType: 'sdk'
+        version: '8.0.x'
+
+    - script: |
+        dotnet test tests/integration/**/*.csproj \
+          --configuration Release \
+          --logger trx \
+          --results-directory $(Agent.TempDirectory)/IntegrationTestResults
+      displayName: 'Run Integration Tests'
+      env:
+        ConnectionStrings__DefaultConnection: 'Host=localhost;Database=gridos_test;Username=postgres;Password=postgres'
+
+    - task: PublishTestResults@2
+      condition: always()
+      inputs:
+        testResultsFormat: 'VSTest'
+        testResultsFiles: '$(Agent.TempDirectory)/IntegrationTestResults/**/*.trx'
+
+  - job: PerformanceTest
+    displayName: 'Performance Testing with k6'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - checkout: self
+
+    - script: |
+        # Install k6
+        sudo gpg -k
+        sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+          --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+        echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | \
+          sudo tee /etc/apt/sources.list.d/k6.list
+        sudo apt-get update && sudo apt-get install k6 -y
+      displayName: 'Install k6'
+
+    - script: |
+        # Run performance tests
+        k6 run tests/performance/load-test.js \
+          --out json=performance-results.json \
+          --summary-export=performance-summary.json
+      displayName: 'Run Load Tests'
+
+    - script: |
+        # Check performance regression
+        BASELINE_P95=200  # 200ms baseline
+        CURRENT_P95=$(jq '.metrics.http_req_duration.values["p(95)"]' performance-summary.json)
+        
+        if (( $(echo "$CURRENT_P95 > $BASELINE_P95" | bc -l) )); then
+          echo "##vso[task.logissue type=warning]Performance regression detected: p95=$CURRENT_P95ms (baseline=$BASELINE_P95ms)"
+        fi
+      displayName: 'Check Performance Regression'
+
+###########################################
+# STAGE 3: Infrastructure Deployment
+###########################################
+- stage: DeployInfrastructure
+  displayName: 'Deploy Infrastructure'
+  dependsOn: IntegrationTests
+  condition: succeeded()
+  jobs:
+  - deployment: TerraformDeploy
+    displayName: 'Deploy with Terraform'
+    environment: $(environment)
+    pool:
+      vmImage: 'ubuntu-latest'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+
+          - task: TerraformInstaller@1
+            inputs:
+              terraformVersion: '1.6.0'
+
+          - task: TerraformTaskV4@4
+            displayName: 'Terraform Init'
+            inputs:
+              provider: 'azurerm'
+              command: 'init'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/terraform/environments/$(environment)'
+              backendServiceArm: '$(azureSubscription)'
+              backendAzureRmResourceGroupName: 'gridos-terraform-state-rg'
+              backendAzureRmStorageAccountName: 'gridostfstate$(environment)'
+              backendAzureRmContainerName: 'tfstate'
+              backendAzureRmKey: '$(environment).terraform.tfstate'
+
+          - task: TerraformTaskV4@4
+            displayName: 'Terraform Plan'
+            inputs:
+              provider: 'azurerm'
+              command: 'plan'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/terraform/environments/$(environment)'
+              commandOptions: '-var-file=$(environment).tfvars -out=tfplan'
+              environmentServiceNameAzureRM: '$(azureSubscription)'
+
+          - task: TerraformTaskV4@4
+            displayName: 'Terraform Apply'
+            inputs:
+              provider: 'azurerm'
+              command: 'apply'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/terraform/environments/$(environment)'
+              commandOptions: 'tfplan'
+              environmentServiceNameAzureRM: '$(azureSubscription)'
+
+          - task: TerraformTaskV4@4
+            displayName: 'Get Terraform Outputs'
+            inputs:
+              provider: 'azurerm'
+              command: 'output'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/terraform/environments/$(environment)'
+
+          - script: |
+              # Extract Terraform outputs
+              cd terraform/environments/$(environment)
+              
+              APP_GW_ID=$(terraform output -raw app_gateway_id)
+              APP_GW_IP=$(terraform output -raw app_gateway_public_ip)
+              AKS_NAME=$(terraform output -raw aks_cluster_name)
+              RG_NAME=$(terraform output -raw resource_group_name)
+              
+              echo "##vso[task.setvariable variable=appGatewayId;isOutput=true]$APP_GW_ID"
+              echo "##vso[task.setvariable variable=appGatewayIP;isOutput=true]$APP_GW_IP"
+              echo "##vso[task.setvariable variable=aksClusterName;isOutput=true]$AKS_NAME"
+              echo "##vso[task.setvariable variable=resourceGroupName;isOutput=true]$RG_NAME"
+              
+              echo "Application Gateway ID: $APP_GW_ID"
+              echo "Application Gateway IP: $APP_GW_IP"
+              echo "AKS Cluster: $AKS_NAME"
+            name: terraformOutputs
+            displayName: 'Extract Terraform Outputs'
+
+          - task: AzureCLI@2
+            displayName: 'Enable AGIC Add-on for AKS'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                # Enable Application Gateway Ingress Controller
+                az aks enable-addons \
+                  --resource-group $(terraformOutputs.resourceGroupName) \
+                  --name $(terraformOutputs.aksClusterName) \
+                  --addons ingress-appgw \
+                  --appgw-id $(terraformOutputs.appGatewayId) \
+                  --yes || echo "AGIC may already be enabled"
+                
+                # Wait for AGIC pods to be ready
+                az aks get-credentials \
+                  --resource-group $(terraformOutputs.resourceGroupName) \
+                  --name $(terraformOutputs.aksClusterName) \
+                  --overwrite-existing
+                
+                kubectl wait --namespace kube-system \
+                  --for=condition=ready pod \
+                  --selector=app=ingress-appgw \
+                  --timeout=300s || echo "AGIC pods not ready yet"
+
+          - script: |
+              # Install/Update Flagger for Application Gateway
+              helm repo add flagger https://flagger.app
+              helm repo update
+              
+              helm upgrade --install flagger flagger/flagger \
+                --namespace flagger-system \
+                --create-namespace \
+                --set meshProvider=appmesh \
+                --set metricsServer=http://prometheus-server.monitoring:80 \
+                --wait
+              
+              helm upgrade --install flagger-loadtester flagger/loadtester \
+                --namespace flagger-system \
+                --wait
+            displayName: 'Install Flagger for Canary Deployments'
+
+          - task: AzureCLI@2
+            displayName: 'Terraform Init & Plan'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                cd terraform/environments/$(environment)
+                terraform init -backend-config="subscription_id=$(subscriptionId)"
+                terraform validate
+                terraform plan -var-file=$(environment).tfvars -out=tfplan
+                
+                # Show cost estimation
+                terraform show -json tfplan > plan.json
+                # Use Infracost or similar for cost analysis
+
+          - task: AzureCLI@2
+            displayName: 'Terraform Apply'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                cd terraform/environments/$(environment)
+                terraform apply -auto-approve tfplan
+
+###########################################
+# STAGE 4: Application Deployment (Canary)
+###########################################
+- stage: DeployApplication
+  displayName: 'Deploy Application'
+  dependsOn: DeployInfrastructure
+  condition: succeeded()
+  jobs:
+  - deployment: HelmDeploy
+    displayName: 'Deploy with Helm (Flagger-managed Canary)'
+    environment: $(environment)
+    pool:
+      vmImage: 'ubuntu-latest'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: 'helm-charts'
+
+          - task: AzureCLI@2
+            displayName: 'Get AKS Credentials'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                az aks get-credentials \
+                  --resource-group $(resourceGroup) \
+                  --name $(aksCluster) \
+                  --overwrite-existing
+
+          - script: |
+              # Check if this is the first deployment
+              if kubectl get deployment gridos -n gridos &>/dev/null; then
+                echo "Existing deployment found. Flagger will manage canary rollout."
+                DEPLOYMENT_TYPE="canary"
+              else
+                echo "First deployment. Installing application normally."
+                DEPLOYMENT_TYPE="initial"
+              fi
+              echo "##vso[task.setvariable variable=deploymentType]$DEPLOYMENT_TYPE"
+            displayName: 'Determine Deployment Type'
+
+          - task: HelmDeploy@0
+            displayName: 'Deploy Application with Helm'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscription: '$(azureSubscription)'
+              azureResourceGroup: '$(resourceGroup)'
+              kubernetesCluster: '$(aksCluster)'
+              namespace: 'gridos'
+              command: 'upgrade'
+              chartType: 'FilePath'
+              chartPath: '$(Pipeline.Workspace)/helm-charts'
+              releaseName: 'gridos'
+              overrideValues: |
+                image.repository=$(acrName).azurecr.io/$(imageRepository)
+                image.tag=$(tag)
+                replicaCount=3
+                ingress.enabled=true
+                ingress.className=azure-application-gateway
+                ingress.hosts[0].host=$(ingressHost)
+                ingress.annotations.appgw\.ingress\.kubernetes\.io/backend-protocol=http
+                ingress.annotations.appgw\.ingress\.kubernetes\.io/ssl-redirect=true
+              install: true
+              waitForExecution: true
+              arguments: '--create-namespace'
+
+          - script: |
+              # Apply Flagger canary configuration
+              echo "Applying Flagger canary configuration..."
+              
+              # Update canary manifest with current image
+              cat <<EOF | kubectl apply -f -
+              apiVersion: flagger.app/v1beta1
+              kind: Canary
+              metadata:
+                name: gridos
+                namespace: gridos
+              spec:
+                targetRef:
+                  apiVersion: apps/v1
+                  kind: Deployment
+                  name: gridos
+                progressDeadlineSeconds: 600
+                service:
+                  port: 80
+                  targetPort: 8080
+                  name: gridos
+                analysis:
+                  interval: 1m
+                  threshold: 5
+                  maxWeight: 100
+                  stepWeight: 10
+                  iterations: 10
+                  metrics:
+                  - name: request-success-rate
+                    thresholdRange:
+                      min: 99
+                    interval: 1m
+                  - name: request-duration
+                    thresholdRange:
+                      max: 500
+                    interval: 1m
+                  webhooks:
+                  - name: load-test
+                    type: rollout
+                    url: http://flagger-loadtester.flagger-system/
+                    timeout: 15s
+                    metadata:
+                      type: cmd
+                      cmd: "hey -z 1m -q 10 -c 2 http://gridos-canary.gridos/"
+              EOF
+            displayName: 'Apply Flagger Canary Configuration'
+            condition: eq(variables['deploymentType'], 'canary')
+
+          - script: |
+              # Monitor canary deployment
+              echo "Monitoring canary deployment progress..."
+              
+              # Wait for canary to initialize
+              kubectl wait --for=condition=Promoted \
+                canary/gridos \
+                -n gridos \
+                --timeout=15m || true
+              
+              # Get canary status
+              CANARY_STATUS=$(kubectl get canary gridos -n gridos -o jsonpath='{.status.phase}')
+              CANARY_WEIGHT=$(kubectl get canary gridos -n gridos -o jsonpath='{.status.canaryWeight}')
+              
+              echo "Canary Status: $CANARY_STATUS"
+              echo "Canary Weight: $CANARY_WEIGHT"
+              
+              if [ "$CANARY_STATUS" = "Failed" ]; then
+                echo "##vso[task.logissue type=error]Canary deployment failed!"
+                kubectl describe canary gridos -n gridos
+                exit 1
+              fi
+            displayName: 'Monitor Canary Deployment'
+            condition: eq(variables['deploymentType'], 'canary')
+
+          - script: |
+              # Basic health check
+              echo "Performing health check..."
+              
+              # Get service endpoint
+              kubectl get ingress gridos -n gridos
+              
+              # Wait for pods to be ready
+              kubectl wait --for=condition=ready pod \
+                -l app=gridos \
+                -n gridos \
+                --timeout=5m
+              
+              echo "Deployment successful!"
+            displayName: 'Health Check'
+
+###########################################
+# STAGE 5: Monitor Canary Deployment
+###########################################
+- stage: MonitorCanary
+  displayName: 'Monitor Canary Deployment'
+  dependsOn: DeployApplication
+  condition: succeeded()
+  jobs:
+  - job: CanaryMonitoring
+    displayName: 'Watch Canary Progress'
+    pool:
+      vmImage: 'ubuntu-latest'
+    timeoutInMinutes: 20  # 20 minutes max for canary
+    
+    steps:
+    - task: AzureCLI@2
+      displayName: 'Get AKS Credentials'
+      inputs:
+        azureSubscription: '$(azureSubscription)'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az aks get-credentials \
+            --resource-group $(resourceGroup) \
+            --name $(aksCluster) \
+            --overwrite-existing
+
+    - script: |
+        #!/bin/bash
+        set -e
+        
+        echo "=========================================="
+        echo "Monitoring Canary Deployment"
+        echo "=========================================="
+        
+        # Function to get canary status
+        get_canary_status() {
+          kubectl get canary gridos -n gridos -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown"
+        }
+        
+        # Function to get canary weight
+        get_canary_weight() {
+          kubectl get canary gridos -n gridos -o jsonpath='{.status.canaryWeight}' 2>/dev/null || echo "0"
+        }
+        
+        # Function to check Application Gateway backend health
+        check_backend_health() {
+          # Get App Gateway details from Terraform
+          az network application-gateway show-backend-health \
+            --resource-group $(resourceGroup) \
+            --name $(environment)-gridos-appgw \
+            --query 'backendAddressPools[].backendHttpSettingsCollection[].servers[].health' -o tsv
+        }
+        
+        # Monitor for up to 15 minutes
+        MAX_ATTEMPTS=90  # 90 x 10 seconds = 15 minutes
+        attempt=0
+        
+        while [ $attempt -lt $MAX_ATTEMPTS ]; do
+          STATUS=$(get_canary_status)
+          WEIGHT=$(get_canary_weight)
+          
+          echo ""
+          echo "==== Canary Status (Attempt $((attempt+1))/$MAX_ATTEMPTS) ===="
+          echo "Phase: $STATUS"
+          echo "Traffic Weight: $WEIGHT%"
+          echo ""
+          
+          # Show canary details
+          kubectl get canary gridos -n gridos -o wide || true
+          
+          # Check backend health
+          echo ""
+          echo "Application Gateway Backend Health:"
+          check_backend_health || echo "Unable to check backend health"
+          
+          # Check if canary succeeded
+          if [ "$STATUS" = "Succeeded" ]; then
+            echo "✅ Canary deployment succeeded!"
+            echo "##vso[task.setvariable variable=canaryStatus;isOutput=true]succeeded"
+            exit 0
+          fi
+          
+          # Check if canary failed
+          if [ "$STATUS" = "Failed" ]; then
+            echo "❌ Canary deployment failed!"
+            echo "##vso[task.logissue type=error]Canary deployment failed - automatic rollback initiated by Flagger"
+            
+            # Get detailed failure information
+            echo ""
+            echo "Failure Details:"
+            kubectl describe canary gridos -n gridos
+            
+            # Get events
+            echo ""
+            echo "Recent Events:"
+            kubectl get events -n gridos --sort-by='.lastTimestamp' | tail -20
+            
+            echo "##vso[task.setvariable variable=canaryStatus;isOutput=true]failed"
+            exit 1
+          fi
+          
+          # Still in progress
+          if [ "$STATUS" = "Progressing" ]; then
+            echo "⏳ Canary deployment in progress at $WEIGHT% traffic..."
+          fi
+          
+          # Wait before next check
+          sleep 10
+          attempt=$((attempt+1))
+        done
+        
+        # Timeout reached
+        echo "⏰ Monitoring timeout reached (15 minutes)"
+        echo "##vso[task.logissue type=warning]Canary monitoring timeout - check manually"
+        echo "##vso[task.setvariable variable=canaryStatus;isOutput=true]timeout"
+        exit 1
+      name: monitoringResult
+      displayName: 'Monitor Canary Progress'
+
+###########################################
+# STAGE 6: Smoke Tests
+###########################################
+- stage: SmokeTests
+  displayName: 'Smoke Tests'
+  dependsOn: MonitorCanary
+  condition: succeeded()
+  jobs:
+  - job: SmokeTest
+    displayName: 'Run Smoke Tests'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - checkout: self
+
+    - task: AzureCLI@2
+      displayName: 'Get AKS Credentials'
+      inputs:
+        azureSubscription: '$(azureSubscription)'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az aks get-credentials \
+            --resource-group $(resourceGroup) \
+            --name $(aksCluster) \
+            --overwrite-existing
+
+    - script: |
+        # Get Application Gateway public IP
+        APP_GW_IP=$(az network public-ip show \
+          --resource-group $(resourceGroup) \
+          --name $(environment)-gridos-appgw-pip \
+          --query ipAddress -o tsv)
+        
+        echo "Application Gateway IP: $APP_GW_IP"
+        echo "Testing via Application Gateway..."
+        
+        # Test via App Gateway (external)
+        for i in {1..5}; do
+          response=$(curl -s -o /dev/null -w "%{http_code}" -H "Host: $(ingressHost)" http://$APP_GW_IP/health)
+          if [ "$response" = "200" ]; then
+            echo "✅ Health check $i/5 passed (HTTP $response)"
+          else
+            echo "❌ Health check $i/5 failed (HTTP $response)"
+            exit 1
+          fi
+          sleep 2
+        done
+        
+        echo "All smoke tests passed ✓"
+      displayName: 'Application Gateway Health Check'
+
+###########################################
+# STAGE 7: Rollback (Manual Trigger Only)
+###########################################
+- stage: ManualRollback
+  displayName: 'Manual Rollback'
+  dependsOn: []  # Can be triggered independently
+  condition: false  # Never runs automatically - manual trigger only
+  jobs:
+  - deployment: RollbackDeployment
+    displayName: 'Rollback to Previous Version'
+    environment: $(environment)-rollback
+    pool:
+      vmImage: 'ubuntu-latest'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzureCLI@2
+            displayName: 'Get AKS Credentials'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                az aks get-credentials \
+                  --resource-group $(resourceGroup) \
+                  --name $(aksCluster) \
+                  --overwrite-existing
+
+          - script: |
+              echo "=========================================="
+              echo "ROLLBACK INITIATED"
+              echo "=========================================="
+              
+              # Check if Flagger has already rolled back
+              CANARY_STATUS=$(kubectl get canary gridos -n gridos -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
+              
+              if [ "$CANARY_STATUS" = "Failed" ]; then
+                echo "✅ Flagger has already rolled back automatically"
+                echo "Current state: 100% traffic on stable version"
+                kubectl get canary gridos -n gridos
+                exit 0
+              fi
+              
+              # Manual rollback using Helm
+              echo "Performing Helm rollback..."
+              
+              # Get previous revision
+              CURRENT_REV=$(helm list -n gridos -o json | jq -r '.[0].revision')
+              PREVIOUS_REV=$((CURRENT_REV - 1))
+              
+              if [ $PREVIOUS_REV -lt 1 ]; then
+                echo "##vso[task.logissue type=error]No previous revision to rollback to"
+                exit 1
+              fi
+              
+              echo "Rolling back from revision $CURRENT_REV to $PREVIOUS_REV"
+              
+              # Perform rollback
+              helm rollback gridos $PREVIOUS_REV -n gridos --wait
+              
+              # Wait for rollback to complete
+              kubectl rollout status deployment/gridos -n gridos --timeout=5m
+              
+              # Reset canary if it exists
+              if kubectl get canary gridos -n gridos &>/dev/null; then
+                echo "Resetting Flagger canary..."
+                kubectl delete canary gridos -n gridos || true
+                sleep 10
+                kubectl apply -f kubernetes/flagger/gridos-canary.yaml || true
+              fi
+              
+              echo "✅ Rollback completed successfully"
+              
+              # Show current state
+              echo ""
+              echo "Current Deployment State:"
+              kubectl get deployments,pods,ingress -n gridos
+            displayName: 'Execute Rollback'
+
+          - script: |
+              # Verify rollback
+              echo "Verifying rollback..."
+              
+              # Wait for pods to be ready
+              kubectl wait --for=condition=ready pod \
+                -l app=gridos \
+                -n gridos \
+                --timeout=5m
+              
+              # Test health endpoint
+              kubectl run rollback-test --image=curlimages/curl --rm -i --restart=Never -- \
+                curl -f http://gridos.gridos.svc.cluster.local/health
+              
+              if [ $? -eq 0 ]; then
+                echo "✅ Rollback verification passed"
+              else
+                echo "❌ Rollback verification failed"
+                exit 1
+              fi
+            displayName: 'Verify Rollback'
+
+###########################################
+# STAGE 8: Post-Deployment Validation
+###########################################
+- stage: PostDeploymentValidation
+  displayName: 'Post-Deployment Validation'
+  dependsOn: SmokeTests
+  condition: succeeded()
+  jobs:
+  - job: ValidationTests
+    displayName: 'Run Validation Tests'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - task: AzureCLI@2
+      displayName: 'Get AKS Credentials'
+      inputs:
+        azureSubscription: '$(azureSubscription)'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az aks get-credentials \
+            --resource-group $(resourceGroup) \
+            --name $(aksCluster)
+
+    - script: |
+        # Wait for deployment to stabilize
+        kubectl rollout status deployment/gridos -n gridos --timeout=5m
+      displayName: 'Wait for Rollout'
+
+    - script: |
+        # Run smoke tests
+        SERVICE_IP=$(kubectl get svc gridos -n gridos -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+        
+        # Health check
+        curl -f http://$SERVICE_IP/health || exit 1
+        curl -f http://$SERVICE_IP/health/ready || exit 1
+        
+        # API tests
+        curl -f http://$SERVICE_IP/api/gridnodes || exit 1
+        
+        echo "All smoke tests passed!"
+      displayName: 'Run Smoke Tests'
+
+    - script: |
+        # Create Grafana annotation for deployment
+        curl -X POST http://grafana.monitoring/api/annotations \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"text\": \"Deployment $(Build.BuildId) to $(environment)\",
+            \"tags\": [\"deployment\", \"$(environment)\"],
+            \"time\": $(date +%s)000
+          }"
+      displayName: 'Create Grafana Annotation'
+
+###########################################
+# STAGE 6: Production Approval (Prod Only)
+###########################################
+- stage: ProductionApproval
+  displayName: 'Production Approval'
+  dependsOn: PostDeploymentValidation
+  condition: and(succeeded(), eq(variables['environment'], 'prod'))
+  jobs:
+  - job: WaitForApproval
+    displayName: 'Wait for Manual Approval'
+    pool: server
+    timeoutInMinutes: 1440  # 24 hours
+    steps:
+    - task: ManualValidation@0
+      inputs:
+        notifyUsers: 'sre-team@company.com'
+        instructions: |
+          Please review the deployment:
+          - Build: $(Build.BuildId)
+          - Environment: $(environment)
+          - Commit: $(Build.SourceVersion)
+          - All tests passed
+          - Security scans passed
+          - Performance validation passed
+          
+          Approve to proceed with production deployment.
