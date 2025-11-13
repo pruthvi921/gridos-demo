@@ -1,0 +1,188 @@
+{
+  "dashboard": {
+    "title": "GridOS - Canary Deployment Monitoring",
+    "tags": ["gridos", "canary", "argo-rollouts", "progressive-delivery"],
+    "timezone": "browser",
+    "editable": true,
+    "refresh": "10s",
+    "time": {
+      "from": "now-30m",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "title": "Canary vs Stable - Request Rate",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{job=\"gridos-api\",version=\"stable\"}[1m]))",
+            "legendFormat": "Stable",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(http_requests_total{job=\"gridos-api\",version=\"canary\"}[1m]))",
+            "legendFormat": "Canary",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "Requests/sec"}
+        ]
+      },
+      {
+        "title": "Canary vs Stable - Error Rate",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{job=\"gridos-api\",version=\"stable\",status=~\"5..\"}[1m])) / sum(rate(http_requests_total{job=\"gridos-api\",version=\"stable\"}[1m])) * 100",
+            "legendFormat": "Stable Error Rate",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(http_requests_total{job=\"gridos-api\",version=\"canary\",status=~\"5..\"}[1m])) / sum(rate(http_requests_total{job=\"gridos-api\",version=\"canary\"}[1m])) * 100",
+            "legendFormat": "Canary Error Rate",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Error %", "max": 10}
+        ],
+        "alert": {
+          "name": "Canary Error Rate High",
+          "conditions": [
+            {
+              "evaluator": {"params": [5], "type": "gt"},
+              "query": {"params": ["B", "1m", "now"]},
+              "type": "query"
+            }
+          ]
+        }
+      },
+      {
+        "title": "Canary vs Stable - Latency (p95)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"gridos-api\",version=\"stable\"}[1m])) by (le)) * 1000",
+            "legendFormat": "Stable p95",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"gridos-api\",version=\"canary\"}[1m])) by (le)) * 1000",
+            "legendFormat": "Canary p95",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "ms", "label": "Latency"}
+        ]
+      },
+      {
+        "title": "Rollout Status",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "argo_rollouts_phase{name=\"gridos-api\"}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "textMode": "value",
+          "colorMode": "background"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"value": "0", "text": "Progressing", "color": "yellow"},
+              {"value": "1", "text": "Paused", "color": "blue"},
+              {"value": "2", "text": "Healthy", "color": "green"},
+              {"value": "3", "text": "Degraded", "color": "red"}
+            ]
+          }
+        }
+      },
+      {
+        "title": "Canary Weight (%)",
+        "type": "gauge",
+        "gridPos": {"x": 18, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "argo_rollouts_canary_weight{name=\"gridos-api\"}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "blue"},
+                {"value": 25, "color": "yellow"},
+                {"value": 50, "color": "orange"},
+                {"value": 100, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Analysis Run Status",
+        "type": "table",
+        "gridPos": {"x": 12, "y": 12, "w": 12, "h": 4},
+        "targets": [
+          {
+            "expr": "argo_rollouts_analysisrun_phase",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "title": "Traffic Split",
+        "type": "piechart",
+        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{job=\"gridos-api\",version=\"stable\"}[5m]))",
+            "legendFormat": "Stable",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(http_requests_total{job=\"gridos-api\",version=\"canary\"}[5m]))",
+            "legendFormat": "Canary",
+            "refId": "B"
+          }
+        ],
+        "options": {
+          "displayLabels": ["percent"],
+          "legend": {
+            "displayMode": "table",
+            "placement": "right"
+          }
+        }
+      },
+      {
+        "title": "Rollout Events Timeline",
+        "type": "logs",
+        "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "{namespace=\"gridos\", app=\"gridos-api\"} |= \"rollout\"",
+            "refId": "A"
+          }
+        ]
+      }
+    ]
+  }
+}

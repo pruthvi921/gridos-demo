@@ -1,0 +1,197 @@
+{
+  "dashboard": {
+    "title": "GridOS - Database Performance",
+    "tags": ["gridos", "database", "postgresql", "performance"],
+    "timezone": "browser",
+    "editable": true,
+    "refresh": "30s",
+    "time": {
+      "from": "now-3h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "title": "Database Connections",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "gridos_database_connections_active",
+            "legendFormat": "Active Connections",
+            "refId": "A"
+          },
+          {
+            "expr": "gridos_database_connections_idle",
+            "legendFormat": "Idle Connections",
+            "refId": "B"
+          },
+          {
+            "expr": "gridos_database_connections_max",
+            "legendFormat": "Max Connections",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Connections"}
+        ]
+      },
+      {
+        "title": "Query Duration (p50, p95, p99)",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(gridos_database_query_duration_seconds_bucket[5m])) by (le)) * 1000",
+            "legendFormat": "p50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(gridos_database_query_duration_seconds_bucket[5m])) by (le)) * 1000",
+            "legendFormat": "p95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(gridos_database_query_duration_seconds_bucket[5m])) by (le)) * 1000",
+            "legendFormat": "p99",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "ms", "label": "Duration"}
+        ]
+      },
+      {
+        "title": "Queries per Second",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(gridos_database_queries_total[5m])) by (operation)",
+            "legendFormat": "{{ operation }}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "qps", "label": "Queries/sec"}
+        ]
+      },
+      {
+        "title": "Database Errors",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(gridos_database_errors_total[5m])) by (error_type)",
+            "legendFormat": "{{ error_type }}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Errors/sec"}
+        ]
+      },
+      {
+        "title": "Slow Queries (> 1s)",
+        "type": "table",
+        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "topk(10, gridos_database_slow_queries_total)",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "columns": ["query", "duration_seconds", "count"],
+              "renameByName": {
+                "query": "Query",
+                "duration_seconds": "Avg Duration (s)",
+                "count": "Count"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "title": "Connection Pool Health",
+        "type": "gauge",
+        "gridPos": {"x": 12, "y": 16, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "gridos_database_connections_active / gridos_database_connections_max * 100",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 70, "color": "yellow"},
+                {"value": 90, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Transaction Rate",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 16, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(rate(gridos_database_transactions_total[5m]))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "textMode": "value_and_name",
+          "colorMode": "value"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "tps",
+            "decimals": 2
+          }
+        }
+      },
+      {
+        "title": "Deadlocks",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 20, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "increase(gridos_database_deadlocks_total[1h])",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "textMode": "value",
+          "colorMode": "background"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "yellow"},
+                {"value": 5, "color": "red"}
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}

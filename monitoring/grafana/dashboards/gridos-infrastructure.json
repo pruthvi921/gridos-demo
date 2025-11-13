@@ -1,0 +1,147 @@
+{
+  "dashboard": {
+    "title": "GridOS - Infrastructure Monitoring",
+    "tags": ["gridos", "infrastructure", "kubernetes", "aks"],
+    "timezone": "browser",
+    "editable": true,
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "title": "Cluster CPU Usage",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"gridos\"}[5m])) by (pod)",
+            "legendFormat": "{{ pod }}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "cores", "label": "CPU Cores"}
+        ]
+      },
+      {
+        "title": "Memory Usage by Pod",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(container_memory_working_set_bytes{namespace=\"gridos\"}) by (pod)",
+            "legendFormat": "{{ pod }}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "bytes", "label": "Memory"}
+        ]
+      },
+      {
+        "title": "Pod Status",
+        "type": "table",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "kube_pod_status_phase{namespace=\"gridos\"}",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "columns": ["pod", "phase", "Value"],
+              "renameByName": {
+                "pod": "Pod Name",
+                "phase": "Status"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "title": "Pod Restart Count (Last 1h)",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"gridos\"}[1h])) by (pod)",
+            "legendFormat": "{{ pod }}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Restarts"}
+        ]
+      },
+      {
+        "title": "Network I/O",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(container_network_receive_bytes_total{namespace=\"gridos\"}[5m])) by (pod)",
+            "legendFormat": "RX - {{ pod }}",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(container_network_transmit_bytes_total{namespace=\"gridos\"}[5m])) by (pod)",
+            "legendFormat": "TX - {{ pod }}",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "Bps", "label": "Bytes/sec"}
+        ]
+      },
+      {
+        "title": "Node Capacity",
+        "type": "gauge",
+        "gridPos": {"x": 12, "y": 16, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(kube_node_status_allocatable{resource=\"cpu\"}) - sum(kube_pod_container_resource_requests{resource=\"cpu\"})",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "cores",
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 2, "color": "yellow"},
+                {"value": 5, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Disk Usage",
+        "type": "graph",
+        "gridPos": {"x": 18, "y": 16, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(container_fs_usage_bytes{namespace=\"gridos\"}) by (pod)",
+            "legendFormat": "{{ pod }}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "bytes", "label": "Disk Usage"}
+        ]
+      }
+    ]
+  }
+}
