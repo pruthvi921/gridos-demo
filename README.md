@@ -1,7 +1,7 @@
 # GridOS Platform - Production-Ready GitOps Infrastructure
 
 ## 🎯 Overview
-A **production-ready GitOps pipeline** for the GridOS platform, demonstrating enterprise-grade Site Reliability Engineering (SRE) practices with **complete automation** and **zero manual intervention**.
+A **production-ready GitOps pipeline** for the GridOS platform, demonstrating with **complete automation** and **zero manual intervention**.
 
 ### What Makes This Special
 
@@ -225,6 +225,7 @@ Azure Kubernetes Service
 - **Critical**: Service unavailability, database connection failures
 - **Warning**: High error rates, resource saturation, slow queries
 - **Info**: Deployment events, configuration changes
+
 
 
 
