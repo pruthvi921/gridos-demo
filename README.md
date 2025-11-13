@@ -39,33 +39,44 @@ infrastructure is fully automated using Terraform with a modular, reusable appro
 
 designed a modular Terraform setup to ensure reusability, consistency, and environment isolation.
 
-terraform/
-├── modules/                    # Reusable components
-│   ├── networking/            # VNet, Subnets, NSG, Private Endpoints
-│   ├── kubernetes/            # AKS cluster, node pools, RBAC
-│   ├── database/              # PostgreSQL Flexible Server
-│   ├── app-gateway/           # Application Gateway + WAF
-│   ├── acr/                   # Azure Container Registry
-│   ├── key-vault/             # Key Vault + access policies
-│   ├── observability/         # Log Analytics, App Insights
-│   └── storage/               # Storage accounts for state/data
-│
-└── environments/              # Environment-specific configs
-    ├── dev/
-    │   ├── main.tf            # Orchestrates modules
-    │   ├── variables.tf       # Input parameters
-    │   ├── terraform.tfvars   # Dev-specific values
-    │   ├── outputs.tf         # Outputs for other tools
-    │   └── backend.tf         # Remote state in Azure Storage
-    ├── test/
-    └── prod/
+## 🏗️ Infrastructure as Code
 
-**Features:**
-- ✅ Auto-deploy dev on push to main
-- ✅ Manual approval gates for test/prod
-- ✅ Automatic GitOps bootstrap after infrastructure
-- ✅ Plan-only mode for safe reviews
-- ✅ State management in Azure Storage
+### Terraform Modules
+
+#### Networking Module
+- VPC/VNet with public and private subnets
+- NAT Gateway for outbound traffic
+- Network Security Groups with least privilege
+- Service endpoints for Azure services
+
+#### Kubernetes Module
+- AKS/EKS cluster with auto-scaling node pools
+- RBAC configuration with Azure AD/AWS IAM integration
+- Network policies for pod-to-pod communication
+- Cluster autoscaler and metrics server
+
+#### Database Module
+- PostgreSQL Flexible Server with high availability
+- Automated backups and point-in-time recovery
+- Private endpoint connectivity
+- Connection pooling with PgBouncer
+
+#### Monitoring Module
+- Prometheus with long-term storage
+- Grafana with pre-configured dashboards
+- Loki for centralized logging
+- AlertManager with PagerDuty integration
+
+### Environment Management
+
+```bash
+# Deploy to specific environment
+cd terraform/environments/<dev|test|prod>
+terraform workspace select <env>
+terraform apply -var-file="terraform.tfvars"
+
+# State management with remote backend (Azure Storage/)
+
 
 **Trigger deployment:**
 ```bash
@@ -76,8 +87,6 @@ git push origin main
 
 # Or use GitHub UI: Actions → Infrastructure Deployment → Run workflow
 ```
-
-
 
 
 
@@ -169,186 +178,6 @@ Azure Kubernetes Service
    - Zero downtime maintained
 
 
-## ✅ Success Criteria
-
-Deployment is successful when:
-
-- ✅ Terraform apply completes without errors
-- ✅ All AKS nodes are Ready
-- ✅ Argo CD UI accessible
-- ✅ Rollouts Dashboard accessible
-- ✅ `gridos-dev` application shows "Synced" and "Healthy"
-- ✅ Application pods running
-- ✅ Git push triggers auto-sync
-- ✅ Canary rollout completes successfully
-- ✅ Rollback works instantly
-
----
-
-## 🛠️ Troubleshooting
-
-See [COMPLETE_DEPLOYMENT_GUIDE.md - Troubleshooting](COMPLETE_DEPLOYMENT_GUIDE.md#-troubleshooting) for detailed fixes.
-
-**Quick fixes:**
-
-```bash
-# Argo CD not syncing
-argocd app sync gridos-dev --hard-refresh
-
-# Rollout stuck
-kubectl argo rollouts promote gridos -n gridos-dev
-
-# GitHub auth failed
-kubectl create secret generic github-repo-secret \
-  --from-literal=username=$GITHUB_USERNAME \
-  --from-literal=password=$GITHUB_TOKEN \
-  --namespace argocd --dry-run=client -o yaml | kubectl apply -f -
-```
-
----
-
-## 🚀 Next Steps
-
-### For Production
-
-1. Create prod overlay (5 replicas, slow canary)
-2. Deploy Prometheus for metrics
-3. Configure production domains + SSL
-4. Enable Azure AD authentication
-5. Set up alerting (PagerDuty/OpsGenie)
-
-See [COMPLETE_DEPLOYMENT_GUIDE.md - Next Steps](COMPLETE_DEPLOYMENT_GUIDE.md#-next-steps) for details.
-
----
-
-## 📞 Support
-
-**Questions or issues?**
-
-1. Check [COMPLETE_DEPLOYMENT_GUIDE.md](COMPLETE_DEPLOYMENT_GUIDE.md) - Troubleshooting section
-2. Check [QUICK_REFERENCE.md](QUICK_REFERENCE.md) - Quick fixes
-3. Review logs: `kubectl logs -n argocd` and `kubectl logs -n argo-rollouts`
-
----
-
-## 🎉 What You Get
-
-A **production-grade GitOps pipeline** featuring:
-
-✅ Complete automation (zero manual commands)  
-✅ GitOps methodology (Argo CD)  
-✅ Progressive delivery (Argo Rollouts)  
-✅ Multi-environment support  
-✅ High availability  
-✅ Security best practices  
-✅ Full observability  
-✅ Comprehensive documentation  
-✅ Interview-ready demo  
-
-**Perfect for demonstrating SRE expertise at companies like GE Grid Solutions!**
-
----
-
-## 📄 License
-
-This project is for demonstration purposes. Adapt as needed for your use case.
-
----
-
-**Built with ❤️ for SRE excellence**
-.
-├── .github/
-│   └── workflows/              # CI/CD pipeline definitions
-│       ├── ci-pipeline.yml
-│       ├── cd-dev.yml
-│       ├── cd-test.yml
-│       ├── cd-prod.yml
-│       └── security-scan.yml
-├── terraform/
-│   ├── modules/               # Reusable infrastructure modules
-│   │   ├── networking/
-│   │   ├── kubernetes/
-│   │   ├── database/
-│   │   ├── monitoring/
-│   │   └── security/
-│   ├── environments/          # Environment-specific configurations
-│   │   ├── dev/
-│   │   ├── test/
-│   │   └── prod/
-│   └── backend.tf             # Remote state configuration
-├── src/
-│   ├── GridOS.API/            # REST API for grid monitoring
-│   ├── GridOS.DataService/    # Data processing microservice
-│   ├── GridOS.WebPortal/      # Frontend application
-│   └── GridOS.Common/         # Shared libraries
-├── kubernetes/
-│   ├── helm-charts/           # Helm charts for deployments
-│   │   └── gridos/
-│   ├── base/                  # Base Kubernetes resources
-│   └── overlays/              # Kustomize overlays per environment
-├── monitoring/
-│   ├── grafana/
-│   │   ├── dashboards/        # Custom Grafana dashboards
-│   │   └── datasources/
-│   ├── prometheus/
-│   │   ├── rules/             # Alert rules
-│   │   └── config/
-│   └── loki/
-│       └── config/
-├── scripts/
-│   ├── incident-response/     # Automated incident runbooks
-│   ├── capacity-planning/     # Capacity analysis scripts
-│   └── deployment/            # Deployment automation
-├── docs/
-│   ├── runbooks/              # Operational runbooks
-│   ├── postmortems/           # Incident postmortem templates
-│   ├── sre-practices/         # SRE documentation
-│   └── architecture/          # Architecture diagrams
-└── tests/
-    ├── unit/
-    ├── integration/
-    └── load/                  # Load testing scenarios
-```
-
-## 🏗️ Infrastructure as Code
-
-### Terraform Modules
-
-#### Networking Module
-- VPC/VNet with public and private subnets
-- NAT Gateway for outbound traffic
-- Network Security Groups with least privilege
-- Service endpoints for Azure services
-
-#### Kubernetes Module
-- AKS/EKS cluster with auto-scaling node pools
-- RBAC configuration with Azure AD/AWS IAM integration
-- Network policies for pod-to-pod communication
-- Cluster autoscaler and metrics server
-
-#### Database Module
-- PostgreSQL Flexible Server with high availability
-- Automated backups and point-in-time recovery
-- Private endpoint connectivity
-- Connection pooling with PgBouncer
-
-#### Monitoring Module
-- Prometheus with long-term storage
-- Grafana with pre-configured dashboards
-- Loki for centralized logging
-- AlertManager with PagerDuty integration
-
-### Environment Management
-
-```bash
-# Deploy to specific environment
-cd terraform/environments/<dev|test|prod>
-terraform workspace select <env>
-terraform apply -var-file="terraform.tfvars"
-
-# State management with remote backend (Azure Storage/S3)
-```
-
 ## 🔄 CI/CD Pipeline
 
 ### Pipeline Stages
@@ -396,6 +225,7 @@ terraform apply -var-file="terraform.tfvars"
 - **Critical**: Service unavailability, database connection failures
 - **Warning**: High error rates, resource saturation, slow queries
 - **Info**: Deployment events, configuration changes
+
 
 
 
